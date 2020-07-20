@@ -8,6 +8,7 @@ set = "set"
 types = "types"
 cost = "cost"
 text = "text"
+pile_size = "pile size"
 # actions = "actions"
 # villagers = "villagers"
 # cards = "cards"
@@ -119,6 +120,8 @@ starting_deck = {
     estate: 3
 }
 
+initial_supplies = [copper, silver, gold, estate, duchy, province, curse]
+
 # Dictionary for card text
 card_text = {
     # Base game cards
@@ -178,43 +181,45 @@ card_text = {
 }
 
 card_list = {
-    cellar: {name: cellar, set: base, types: [action], cost: 2, text: card_text[cellar]},
-    chapel: {name: chapel, set: base, types: [action], cost: 2, text: card_text[chapel]},
-    moat: {name: moat, set: base, types: [action, reaction], cost: 2, text: card_text[moat]},
-    chancellor: {name: chancellor, set: base_1e, types: [action], cost: 3, text: card_text[chancellor]},
-    harbinger: {name: harbinger, set: base_2e, types: [action], cost: 3, text: card_text[harbinger]},
-    merchant: {name: merchant, set: base_2e, types: [action], cost: 3, text: card_text[merchant]},
-    vassal: {name: vassal, set: base_2e, types: [action], cost: 3, text: card_text[vassal]},
-    village: {name: village, set: base, types: [action], cost: 3, text: card_text[village]},
-    woodcutter: {name: woodcutter, set: base_1e, types: [action], cost: 3, text: card_text[woodcutter]},
-    workshop: {name: workshop, set: base, types: [action], cost: 3, text: card_text[workshop]},
-    bureaucrat: {name: bureaucrat, set: base, types: [action, attack], cost: 4, text: card_text[bureaucrat]},
-    feast: {name: feast, set: base_1e, types: [action], cost: 4, text: card_text[feast]},
-    gardens: {name: gardens, set: base, types: [victory], cost: 4, text: card_text[gardens]},
-    militia: {name: militia, set: base, types: [action, attack], cost: 4, text: card_text[militia]},
-    moneylender: {name: moneylender, set: base, types: [action], cost: 4, text: card_text[moneylender]},
-    poacher: {name: poacher, set: base_2e, types: [action], cost: 4, text: card_text[poacher]},
-    remodel: {name: remodel, set: base, types: [action], cost: 4, text: card_text[remodel]},
-    smithy: {name: smithy, set: base, types: [action], cost: 4, text: card_text[smithy]},
-    spy: {name: spy, set: base_1e, types: [action, attack], cost: 4, text: card_text[spy]},
-    thief: {name: thief, set: base_1e, types: [action, attack], cost: 4, text: card_text[thief]},
-    throne_room: {name: throne_room, set: base, types: [action], cost: 4, text: card_text[throne_room]},
-    bandit: {name: bandit, set: base_2e, types: [action, attack], cost: 5, text: card_text[bandit]},
-    council_room: {name: council_room, set: base, types: [action], cost: 5, text: card_text[council_room]},
-    festival: {name: festival, set: base, types: [action], cost: 5, text: card_text[festival]},
-    laboratory: {name: laboratory, set: base, types: [action], cost: 5, text: card_text[laboratory]},
-    library: {name: library, set: base, types: [action], cost: 5, text: card_text[library]},
-    market: {name: market, set: base, types: [action], cost: 5, text: card_text[market]},
-    mine: {name: mine, set: base, types: [action], cost: 5, text: card_text[mine]},
-    sentry: {name: sentry, set: base_2e, types: [action], cost: 5, text: card_text[sentry]},
-    witch: {name: witch, set: base, types: [action, attack], cost: 5, text: card_text[witch]},
-    adventurer: {name: adventurer, set: base_1e, types: [action], cost: 6, text: card_text[adventurer]},
-    artisan: {name: artisan, set: base_2e, types: [action], cost: 6, text: card_text[artisan]},
-    copper: {name: copper, set: base, types: [treasure], cost: 0, text: card_text[copper]},
-    silver: {name: silver, set: base, types: [treasure], cost: 3, text: card_text[silver]},
-    gold: {name: gold, set: base, types: [treasure], cost: 6, text: card_text[gold]},
-    estate: {name: estate, set: base, types: [victory], cost: 2, text: card_text[estate]},
-    duchy: {name: duchy, set: base, types: [victory], cost: 5, text: card_text[duchy]},
-    province: {name: province, set: base, types: [victory], cost: 8, text: card_text[province]},
-    curse: {name: curse, set: base, types: [curse], cost: 0, text: card_text[curse]}
+    cellar: {name: cellar, set: base, types: [action], cost: 2, text: card_text[cellar], pile_size: 10},
+    chapel: {name: chapel, set: base, types: [action], cost: 2, text: card_text[chapel], pile_size: 10},
+    moat: {name: moat, set: base, types: [action, reaction], cost: 2, text: card_text[moat], pile_size: 10},
+    chancellor: {name: chancellor, set: base_1e, types: [action], cost: 3, text: card_text[chancellor], pile_size: 10},
+    harbinger: {name: harbinger, set: base_2e, types: [action], cost: 3, text: card_text[harbinger], pile_size: 10},
+    merchant: {name: merchant, set: base_2e, types: [action], cost: 3, text: card_text[merchant], pile_size: 10},
+    vassal: {name: vassal, set: base_2e, types: [action], cost: 3, text: card_text[vassal], pile_size: 10},
+    village: {name: village, set: base, types: [action], cost: 3, text: card_text[village], pile_size: 10},
+    woodcutter: {name: woodcutter, set: base_1e, types: [action], cost: 3, text: card_text[woodcutter], pile_size: 10},
+    workshop: {name: workshop, set: base, types: [action], cost: 3, text: card_text[workshop], pile_size: 10},
+    bureaucrat: {name: bureaucrat, set: base, types: [action, attack], cost: 4, text: card_text[bureaucrat],
+                 pile_size: 10},
+    feast: {name: feast, set: base_1e, types: [action], cost: 4, text: card_text[feast], pile_size: 10},
+    gardens: {name: gardens, set: base, types: [victory], cost: 4, text: card_text[gardens], pile_size: 12},
+    militia: {name: militia, set: base, types: [action, attack], cost: 4, text: card_text[militia], pile_size: 10},
+    moneylender: {name: moneylender, set: base, types: [action], cost: 4, text: card_text[moneylender], pile_size: 10},
+    poacher: {name: poacher, set: base_2e, types: [action], cost: 4, text: card_text[poacher], pile_size: 10},
+    remodel: {name: remodel, set: base, types: [action], cost: 4, text: card_text[remodel], pile_size: 10},
+    smithy: {name: smithy, set: base, types: [action], cost: 4, text: card_text[smithy], pile_size: 10},
+    spy: {name: spy, set: base_1e, types: [action, attack], cost: 4, text: card_text[spy], pile_size: 10},
+    thief: {name: thief, set: base_1e, types: [action, attack], cost: 4, text: card_text[thief], pile_size: 10},
+    throne_room: {name: throne_room, set: base, types: [action], cost: 4, text: card_text[throne_room], pile_size: 10},
+    bandit: {name: bandit, set: base_2e, types: [action, attack], cost: 5, text: card_text[bandit], pile_size: 10},
+    council_room: {name: council_room, set: base, types: [action], cost: 5, text: card_text[council_room],
+                   pile_size: 10},
+    festival: {name: festival, set: base, types: [action], cost: 5, text: card_text[festival], pile_size: 10},
+    laboratory: {name: laboratory, set: base, types: [action], cost: 5, text: card_text[laboratory], pile_size: 10},
+    library: {name: library, set: base, types: [action], cost: 5, text: card_text[library], pile_size: 10},
+    market: {name: market, set: base, types: [action], cost: 5, text: card_text[market], pile_size: 10},
+    mine: {name: mine, set: base, types: [action], cost: 5, text: card_text[mine], pile_size: 10},
+    sentry: {name: sentry, set: base_2e, types: [action], cost: 5, text: card_text[sentry], pile_size: 10},
+    witch: {name: witch, set: base, types: [action, attack], cost: 5, text: card_text[witch], pile_size: 10},
+    adventurer: {name: adventurer, set: base_1e, types: [action], cost: 6, text: card_text[adventurer], pile_size: 10},
+    artisan: {name: artisan, set: base_2e, types: [action], cost: 6, text: card_text[artisan], pile_size: 10},
+    copper: {name: copper, set: base, types: [treasure], cost: 0, text: card_text[copper], pile_size: [46, 39, 32]},
+    silver: {name: silver, set: base, types: [treasure], cost: 3, text: card_text[silver], pile_size: 40},
+    gold: {name: gold, set: base, types: [treasure], cost: 6, text: card_text[gold], pile_size: 30},
+    estate: {name: estate, set: base, types: [victory], cost: 2, text: card_text[estate], pile_size: [8, 12]},
+    duchy: {name: duchy, set: base, types: [victory], cost: 5, text: card_text[duchy], pile_size: [8, 12]},
+    province: {name: province, set: base, types: [victory], cost: 8, text: card_text[province], pile_size: [8, 12]},
+    curse: {name: curse, set: base, types: [curse], cost: 0, text: card_text[curse], pile_size: [10, 20, 30]}
 }

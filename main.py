@@ -8,15 +8,17 @@ class Player:
         self.game = game
         self.name = name
         self.hand = []
-        self.deck = self.create_deck()
         self.discard_pile = []
         self.active_cards = []
 
-        if not name:
-            self.name_player()
+        self.deck = self.create_deck()
+        self.set_player_name(name)
 
-    def name_player(self):
-        self.name = "Player " + str(len(self.game.players))
+    def set_player_name(self, name=None):
+        if name:
+            self.name = name
+        else:
+            self.name = "Player " + str(len(self.game.players))
 
     def create_deck(self):
         _deck = []
@@ -25,6 +27,9 @@ class Player:
                 _deck.append(Card(**c.card_list[card_name]))
 
         return _deck
+
+    def play(self):
+        pass
 
     def shuffle_deck(self):
         pass
@@ -44,11 +49,17 @@ class Player:
     def play_card(self, card):
         pass
 
+    def reveal(self, card):
+        pass
+
+    def reveal_hand(self):
+        pass
+
 
 class Card:
     def __init__(self, name, set, types:list, cost, text, actions=None, villagers=None, cards=None,
                  buys=None, coins=None, coffers=None, trash=None, exile=None, junk=None, gain=None,
-                 victory_points=None):
+                 victory_points=None, **kargs):
         self.name = name
         self.set = set
         self.types = types
@@ -66,7 +77,7 @@ class Card:
         # self.gain = gain
         # self.victory_points = victory_points
 
-    def play_card(self, player: Player):
+    def resolve(self):
         pass
 
     def __str__(self):
@@ -91,29 +102,90 @@ class Card:
 
 
 class Supply:
-    def __init__(self, piles: list):
-        self.piles = piles
+    def __init__(self, game, supply=None, sets=None, platina=False, colonies=False, shelters=False):
+        self.game = game
+        if supply is None:
+            supply = []
+
+        self.piles = self.setup_piles(supply, sets, platina, colonies, shelters)
+
+    def setup_piles(self, supply, sets, platina, colonies, shelters):
+        _piles = {}
+        for pile in c.initial_supplies:
+            _piles[pile] = Pile(self.game, pile)
+
+        _kingdom_cards = {}
+        for pile in list(_piles.keys()):
+            _kingdom_cards[pile] = Pile(self.game, pile)
+
+        while len(_kingdom_cards) < 10:
+            new_pile = np.random.choice(list(c.card_list.keys()))
+            if new_pile not in [p for p in list(_piles.keys()) + list(_kingdom_cards.keys())]:
+                _kingdom_cards[new_pile] = Pile(self.game, new_pile)
+
+        return {**_piles, **_kingdom_cards}
+
+    def empty_piles(self):
+        _empty_piles = 0
+        for p in self.piles:
+            if self.piles[p].number == 0:
+                _empty_piles += 1
+
+        return _empty_piles
+
+    def provinces_empty(self):
+        if self.piles[c.province].number == 0:
+            return True
+
+        return False
 
 
 class Pile:
-    def __init__(self, card: Card, num=10):
-        self.card = card
-        self.number = num
+    def __init__(self, game, card_name):
+        self.game = game
+        self.name = card_name
+        self.cards = self.create_pile(card_name)
+
+    def create_pile(self, card):
+        _pile = []
+        pile_size = c.card_list[card][c.pile_size]
+        if type(pile_size) is list:
+            self.number = pile_size[len(self.game.players) - 2]
+        else:
+            self.number = pile_size
+
+        for _ in range(self.number):
+            _pile.append(Card(**c.card_list[card]))
+
+        return _pile
+
+    def add(self, card):
+        self.cards.append(card)
+
+    def remove(self):
+        self.cards.pop()
+        self.number -= 1
 
 
 class Game:
-    def __init__(self, players, supply=None, sets=None, platina=False, colonies=False):
-        self.supply = supply
-        if not supply:
-            self.create_supply(sets, platina, colonies)
-        else:
-            assert type(self.supply) is list
-            assert len(self.supply) >= 17
-
-        self.trash = []
+    def __init__(self, players:int, supply=None, sets=None, platina=False, colonies=False, shelters=False):
+        self.players = []
         self.players = [Player(self) for _ in range(players)]
+        self.supply = Supply(self, supply, sets, platina, colonies, shelters)
+        self.trash = []
+        self.colonies = colonies
+        self.turn = 0
 
-    def create_supply(self, sets, platina, colonies):
+    def gameloop(self):
+        global game_over
+        self.players[self.turn % len(self.players)].play()
+        game_over = self.end_conditions()
+
+    def end_conditions(self):
+        if self.supply.empty_piles() >= 3 or self.supply.provinces_empty():
+            return True
+
+        return False
 
 
 game_over = False
@@ -124,8 +196,8 @@ game = Game(num_players)
 # for card in list(c.card_list.keys()):
 #     print(Card(**c.card_list[card]))
 
-while not game_over:
-
+# while not game_over:
+#     game.gameloop()
 
 # card_list = {
 #     c.cellar: {c.name: c.cellar, c.set: c.base, c.types: [c.action], c.cost: 2, c.text: c.card_text[c.cellar],
