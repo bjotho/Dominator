@@ -76,6 +76,8 @@ project = "Project"
 way = "Way"
 
 # Card names
+
+# Base game cards
 cellar = "Cellar"
 chapel = "Chapel"
 moat = "Moat"
@@ -114,6 +116,10 @@ gold = "Gold"
 estate = "Estate"
 duchy = "Duchy"
 province = "Province"
+
+# Prosperity cards
+platina = "platina"
+colony = "colony"
 
 starting_deck = {
     copper: 7,

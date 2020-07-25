@@ -1,17 +1,26 @@
+import sys
+
 import numpy as np
 import constants as c
 import text_formatting as txf
+import card_methods
 
 
 class Player:
-    def __init__(self, game, name=None):
+    def __init__(self, game, human=True, name=None):
         self.game = game
+        self.human = human
         self.name = name
         self.hand = []
         self.discard_pile = []
         self.active_cards = []
+        self.actions = 1
+        self.buys = 1
+        self.coins = 0
 
         self.deck = self.create_deck()
+        self.shuffle_deck()
+        self.cleanup()
         self.set_player_name(name)
 
     def set_player_name(self, name=None):
@@ -20,7 +29,8 @@ class Player:
         else:
             self.name = "Player " + str(len(self.game.players))
 
-    def create_deck(self):
+    @staticmethod
+    def create_deck():
         _deck = []
         for card_name in list(c.starting_deck.keys()):
             for _ in range(c.starting_deck[card_name]):
@@ -28,38 +38,163 @@ class Player:
 
         return _deck
 
-    def play(self):
-        pass
+    def play(self, display_hand=False):
+        while self.actions > 0:
+            if self.game.verbose and display_hand:
+                print(self.name + "'s turn")
+                self.print_hand()
+
+            card_ix = -1
+            if self.human:
+                card_string = input("Select a card to play (1-" + str(len(self.hand)) + "), \"b\" to buy, \"e\" to "
+                                    "end turn, or \"x\" to exit game:")
+                try:
+                    if card_string == "x":
+                        sys.exit(0)
+                    elif card_string == "e":
+                        return
+                    elif card_string == "b":
+                        break
+                    card_ix = int(card_string) - 1
+                    assert 0 <= card_ix < len(self.hand)
+                except:
+                    print("Invalid card, please try again.")
+                    continue
+
+                if self.game.verbose:
+                    self.confirm_card(card_ix)
+            else:
+                card_ix = np.random.randint(0, len(self.hand))
+
+            self.play_card(card_ix)
+
+        self.buy()
+
+    def confirm_card(self, card_ix):
+        confirmation = input("Play " + str(self.hand[card_ix].name + " (y/n)?"))
+        if confirmation not in ["y", "n"]:
+            print("Please type \"y\" or \"n\"")
+            self.confirm_card(card_ix)
+            return
+        if confirmation == "n":
+            print("Aborted")
+            self.play()
+            return
+
+    def play_card(self, card_ix, use_action=True):
+        card = self.hand[card_ix]
+        self.active_cards.append(card)
+        self.hand.remove(card)
+        eval("card_methods." + card.name.lower() + "_card(self)")
+        if use_action:
+            self.actions -= 1
+
+    def buy(self):
+        treasure_cards = [c.copper, c.silver, c.gold]
+        if self.game.platina:
+            treasure_cards.append(c.platina)
+        for card in self.hand:
+            if card.name in treasure_cards:
+                card.play(self, use_action=False)
+
+        while self.buys > 0:
+            if self.human:
+                buy_or_view = input("Input \"b\" to buy a card, \"v\" to view a card from the supply, or \"e\" to end "
+                                    "turn:")
+                if buy_or_view not in ["b", "v", "e"]:
+                    print("Please type \"b\", \"v\" or \"e\"")
+                    continue
+                if buy_or_view == "e":
+                    return
+                for card in self.game.supply:
+                    print(card.name + ": " + str(self.game.supply.piles[card.name].number))
+                card_string = input("Select a card (card name):")
+                if card_string not in list(self.game.supply.piles.keys()):
+                    print("Invalid card")
+                    continue
+                pile = self.game.supply.piles[card_string]
+                if buy_or_view == "v":
+                    print(Card(**c.card_list[pile.name]))
+                    continue
+                if pile.number > 0:
+                    cost = c.card_list[pile.name][c.cost]
+                    if self.coins >= cost:
+                        self.gain(pile)
+                        self.coins -= cost
+                        self.buys -= 1
+                    else:
+                        print("You do not have enough coins")
+                        continue
+                else:
+                    print("The " + pile.name + " pile is empty")
+                    continue
 
     def shuffle_deck(self):
-        pass
+        for card in self.discard_pile:
+            self.deck.append(card)
+        self.discard_pile.clear()
+        np.random.shuffle(self.deck)
+
+    def cleanup(self):
+        for card in self.hand:
+            self.discard_pile.append(card)
+        for card in self.active_cards:
+            self.discard_pile.append(card)
+        self.hand.clear()
+        self.active_cards.clear()
+        for _ in range(5):
+            self.draw()
 
     def draw(self):
-        pass
+        if len(self.deck) <= 0:
+            if len(self.discard_pile) <= 0:
+                return
+            else:
+                self.shuffle_deck()
 
-    def gain(self, card):
-        pass
+        self.hand.append(self.deck[-1])
+        self.deck.pop()
 
-    def trash(self, card):
-        pass
+    def gain(self, pile):
+        if pile.number <= 0:
+            return
+        self.discard_pile.append(pile.cards[-1])
+        pile.cards.pop()
 
-    def discard(self, card):
-        pass
+    def trash(self, from_pile, card):
+        assert card in from_pile
+        self.game.trash.append(card)
+        from_pile.remove(card)
 
-    def play_card(self, card):
-        pass
+    def discard(self, from_pile, card):
+        assert card in from_pile
+        self.discard_pile.append(card)
+        from_pile.remove(card)
 
-    def reveal(self, card):
-        pass
+    def reveal(self, cards):
+        print(self.name, "revealing")
+        if type(cards) is Card:
+            print(cards.name)
+        elif type(cards) is list:
+            for card in cards:
+                print(card.name)
 
     def reveal_hand(self):
-        pass
+        self.reveal(self.hand)
+
+    def print_hand(self):
+        if self.game.verbose >= 2:
+            for card in self.hand:
+                print(card)
+        else:
+            for card in self.hand:
+                print(card.name)
 
 
 class Card:
     def __init__(self, name, set, types:list, cost, text, actions=None, villagers=None, cards=None,
                  buys=None, coins=None, coffers=None, trash=None, exile=None, junk=None, gain=None,
-                 victory_points=None, **kargs):
+                 victory_points=None, **kwargs):
         self.name = name
         self.set = set
         self.types = types
@@ -77,8 +212,12 @@ class Card:
         # self.gain = gain
         # self.victory_points = victory_points
 
-    def resolve(self):
-        pass
+    def play(self, player:Player, use_action=True):
+        player.active_cards.append(self)
+        player.hand.remove(self)
+        eval("card_methods." + self.name.lower() + "_card(player)")
+        if use_action:
+            player.actions -= 1
 
     def __str__(self):
         output = " " + "_" * (txf.card_width - 2) + " \n"
@@ -112,16 +251,16 @@ class Supply:
     def setup_piles(self, supply, sets, platina, colonies, shelters):
         _piles = {}
         for pile in c.initial_supplies:
-            _piles[pile] = Pile(self.game, pile)
+            _piles[pile] = Pile(len(self.game.players), pile)
 
         _kingdom_cards = {}
         for pile in list(_piles.keys()):
-            _kingdom_cards[pile] = Pile(self.game, pile)
+            _kingdom_cards[pile] = Pile(len(self.game.players), pile)
 
         while len(_kingdom_cards) < 10:
             new_pile = np.random.choice(list(c.card_list.keys()))
             if new_pile not in [p for p in list(_piles.keys()) + list(_kingdom_cards.keys())]:
-                _kingdom_cards[new_pile] = Pile(self.game, new_pile)
+                _kingdom_cards[new_pile] = Pile(len(self.game.players), new_pile)
 
         return {**_piles, **_kingdom_cards}
 
@@ -141,8 +280,8 @@ class Supply:
 
 
 class Pile:
-    def __init__(self, game, card_name):
-        self.game = game
+    def __init__(self, num_players, card_name):
+        self.num_players = num_players
         self.name = card_name
         self.cards = self.create_pile(card_name)
 
@@ -150,7 +289,7 @@ class Pile:
         _pile = []
         pile_size = c.card_list[card][c.pile_size]
         if type(pile_size) is list:
-            self.number = pile_size[len(self.game.players) - 2]
+            self.number = pile_size[self.num_players - 2]
         else:
             self.number = pile_size
 
@@ -161,6 +300,7 @@ class Pile:
 
     def add(self, card):
         self.cards.append(card)
+        self.number += 1
 
     def remove(self):
         self.cards.pop()
@@ -168,17 +308,19 @@ class Pile:
 
 
 class Game:
-    def __init__(self, players:int, supply=None, sets=None, platina=False, colonies=False, shelters=False):
+    def __init__(self, players:int, supply=None, sets=None, platina=False, colonies=False, shelters=False, verbose=1):
         self.players = []
         self.players = [Player(self) for _ in range(players)]
         self.supply = Supply(self, supply, sets, platina, colonies, shelters)
         self.trash = []
+        self.platina = platina
         self.colonies = colonies
+        self.verbose = verbose
         self.turn = 0
 
     def gameloop(self):
         global game_over
-        self.players[self.turn % len(self.players)].play()
+        self.players[self.turn % len(self.players)].play(display_hand=True)
         game_over = self.end_conditions()
 
     def end_conditions(self):
@@ -192,6 +334,7 @@ game_over = False
 num_players = 2
 
 game = Game(num_players)
+game.gameloop()
 
 # for card in list(c.card_list.keys()):
 #     print(Card(**c.card_list[card]))
