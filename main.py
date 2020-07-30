@@ -27,7 +27,7 @@ class Player:
         if name:
             self.name = name
         else:
-            self.name = "Player " + str(len(self.game.players))
+            self.name = "Player " + str(len(self.game.players) + 1)
 
     @staticmethod
     def create_deck():
@@ -38,77 +38,98 @@ class Player:
 
         return _deck
 
-    def play(self, display_hand=False):
-        while self.actions > 0:
-            if self.game.verbose and display_hand:
-                print(self.name + "'s turn")
-                self.print_hand()
+    def play(self):
+        if self.game.verbose:
+            print(self.name + "'s turn:")
+            self.print_hand()
 
+        while self.actions > 0:
             card_ix = -1
             if self.human:
-                card_string = input("Select a card to play (1-" + str(len(self.hand)) + "), \"b\" to buy, \"e\" to "
-                                    "end turn, or \"x\" to exit game:")
+                card_string = input("Select a card to play (card name), \"b\" to initiate buying phase, \"h\" to view "
+                                    "hand, \"e\" to end turn, or \"x\" to exit game:")
+                if card_string == "x":
+                    sys.exit(0)
+                elif card_string == "e":
+                    return
+                elif card_string == "b":
+                    break
+                elif card_string == "h":
+                    self.print_hand()
+                    continue
+                elif card_string == "bb":
+                    self.buy(direct_buy=True)
+                    return
+                elif card_string == "hh":
+                    v_tmp = self.game.verbose
+                    self.game.verbose = 2
+                    self.print_hand()
+                    self.game.verbose = v_tmp
+                    continue
                 try:
-                    if card_string == "x":
-                        sys.exit(0)
-                    elif card_string == "e":
-                        return
-                    elif card_string == "b":
-                        break
-                    card_ix = int(card_string) - 1
-                    assert 0 <= card_ix < len(self.hand)
+                    card_string = card_string[0].upper() + card_string[1:].lower()
+                    i = 0
+                    while card_string != self.hand[i].name:
+                        i += 1
+
+                    card_ix = i
                 except:
-                    print("Invalid card, please try again.")
+                    print("Invalid input, please try again.")
                     continue
 
                 if self.game.verbose:
-                    self.confirm_card(card_ix)
+                    if not card_methods.confirm_card("Play " + str(self.hand[card_ix].name + " (y/n)?")):
+                        continue
             else:
                 card_ix = np.random.randint(0, len(self.hand))
 
-            self.play_card(card_ix)
+            self.hand[card_ix].play(self)
 
         self.buy()
 
-    def confirm_card(self, card_ix):
-        confirmation = input("Play " + str(self.hand[card_ix].name + " (y/n)?"))
-        if confirmation not in ["y", "n"]:
-            print("Please type \"y\" or \"n\"")
-            self.confirm_card(card_ix)
-            return
-        if confirmation == "n":
-            print("Aborted")
-            self.play()
-            return
-
-    def play_card(self, card_ix, use_action=True):
-        card = self.hand[card_ix]
-        self.active_cards.append(card)
-        self.hand.remove(card)
-        eval("card_methods." + card.name.lower() + "_card(self)")
-        if use_action:
-            self.actions -= 1
-
-    def buy(self):
+    def buy(self, direct_buy=False):
         treasure_cards = [c.copper, c.silver, c.gold]
         if self.game.platina:
             treasure_cards.append(c.platina)
-        for card in self.hand:
-            if card.name in treasure_cards:
-                card.play(self, use_action=False)
+        hand_treasures = [card for card in self.hand if card.name in treasure_cards]
+        for t_card in hand_treasures:
+            t_card.play(self, action=False)
 
         while self.buys > 0:
             if self.human:
-                buy_or_view = input("Input \"b\" to buy a card, \"v\" to view a card from the supply, or \"e\" to end "
-                                    "turn:")
-                if buy_or_view not in ["b", "v", "e"]:
-                    print("Please type \"b\", \"v\" or \"e\"")
+                if direct_buy:
+                    buy_or_view = "b"
+                else:
+                    buy_or_view = input("Input \"b\" to buy a card, \"v\" to view a card from the supply, \"h\" to view "
+                                    "hand, or \"e\" to end turn:")
+                if buy_or_view not in ["b", "v", "vv", "h", "hh", "e"]:
+                    print("Please type \"b\", \"v\", \"h\" or \"e\"")
                     continue
                 if buy_or_view == "e":
                     return
-                for card in self.game.supply:
-                    print(card.name + ": " + str(self.game.supply.piles[card.name].number))
+                elif buy_or_view == "h":
+                    self.print_hand()
+                    continue
+                elif buy_or_view == "vv":
+                    v_tmp = self.game.verbose
+                    self.game.verbose = 2
+                    print(self.game.supply)
+                    self.game.verbose = v_tmp
+                    continue
+                elif buy_or_view == "hh":
+                    v_tmp = self.game.verbose
+                    self.game.verbose = 2
+                    self.print_hand()
+                    self.game.verbose = v_tmp
+                    continue
+                print("Supply:")
+                for pile in self.game.supply.piles.items():
+                    print("  " + pile[0] + ": " + str(pile[1].number))
                 card_string = input("Select a card (card name):")
+                if len(card_string) == 0:
+                    print("Invalid card")
+                    continue
+                card_string = card_string[0].upper() + card_string[1:].lower()
                 if card_string not in list(self.game.supply.piles.keys()):
                     print("Invalid card")
                     continue
@@ -129,6 +150,8 @@ class Player:
                     print("The " + pile.name + " pile is empty")
                     continue
 
+        self.cleanup()
+
     def shuffle_deck(self):
         for card in self.discard_pile:
             self.deck.append(card)
@@ -142,6 +165,9 @@ class Player:
             self.discard_pile.append(card)
         self.hand.clear()
         self.active_cards.clear()
+        self.actions = 1
+        self.buys = 1
+        self.coins = 0
         for _ in range(5):
             self.draw()
 
@@ -159,7 +185,7 @@ class Player:
         if pile.number <= 0:
             return
         self.discard_pile.append(pile.cards[-1])
-        pile.cards.pop()
+        pile.remove()
 
     def trash(self, from_pile, card):
         assert card in from_pile
@@ -183,12 +209,13 @@ class Player:
         self.reveal(self.hand)
 
     def print_hand(self):
+        print(self.name + " hand:")
         if self.game.verbose >= 2:
             for card in self.hand:
                 print(card)
         else:
             for card in self.hand:
-                print(card.name)
+                print("  " + card.name)
 
 
 class Card:
@@ -212,11 +239,11 @@ class Card:
         # self.gain = gain
         # self.victory_points = victory_points
 
-    def play(self, player:Player, use_action=True):
+    def play(self, player:Player, action=True):
         player.active_cards.append(self)
         player.hand.remove(self)
         eval("card_methods." + self.name.lower() + "_card(player)")
-        if use_action:
+        if action:
             player.actions -= 1
 
     def __str__(self):
@@ -254,9 +281,6 @@ class Supply:
             _piles[pile] = Pile(len(self.game.players), pile)
 
         _kingdom_cards = {}
-        for pile in list(_piles.keys()):
-            _kingdom_cards[pile] = Pile(len(self.game.players), pile)
-
         while len(_kingdom_cards) < 10:
             new_pile = np.random.choice(list(c.card_list.keys()))
             if new_pile not in [p for p in list(_piles.keys()) + list(_kingdom_cards.keys())]:
@@ -277,6 +301,17 @@ class Supply:
             return True
 
         return False
+
+    def __str__(self):
+        output = "Supply:\n"
+        if self.game.verbose >= 2:
+            for pile in self.piles.items():
+                output += pile[1].__str__() + "\n"
+        else:
+            for pile in list(self.piles.items()):
+                output +=  "  " + pile[0] + ": " + str(pile[1].number) + "\n"
+
+        return output
 
 
 class Pile:
@@ -306,11 +341,14 @@ class Pile:
         self.cards.pop()
         self.number -= 1
 
+    def __str__(self):
+        output = "Size: " + str(self.number) + "\n"
+        return output + Card(**c.card_list[self.name]).__str__()
+
 
 class Game:
     def __init__(self, players:int, supply=None, sets=None, platina=False, colonies=False, shelters=False, verbose=1):
-        self.players = []
-        self.players = [Player(self) for _ in range(players)]
+        self.players = [Player(self, name="Player " + str(i + 1)) for i in range(players)]
         self.supply = Supply(self, supply, sets, platina, colonies, shelters)
         self.trash = []
         self.platina = platina
@@ -318,10 +356,16 @@ class Game:
         self.verbose = verbose
         self.turn = 0
 
+        if self.verbose:
+            print(self.supply)
+
     def gameloop(self):
         global game_over
-        self.players[self.turn % len(self.players)].play(display_hand=True)
+        if self.verbose:
+            print("\nTurn " + str(self.turn + 1) + "\n")
+        self.players[self.turn % len(self.players)].play()
         game_over = self.end_conditions()
+        self.turn += 1
 
     def end_conditions(self):
         if self.supply.empty_piles() >= 3 or self.supply.provinces_empty():
@@ -333,14 +377,9 @@ class Game:
 game_over = False
 num_players = 2
 
-game = Game(num_players)
-game.gameloop()
-
-# for card in list(c.card_list.keys()):
-#     print(Card(**c.card_list[card]))
-
-# while not game_over:
-#     game.gameloop()
+game = Game(players=num_players, verbose=1)
+while not game_over:
+    game.gameloop()
 
 # card_list = {
 #     c.cellar: {c.name: c.cellar, c.set: c.base, c.types: [c.action], c.cost: 2, c.text: c.card_text[c.cellar],
