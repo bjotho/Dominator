@@ -6,6 +6,11 @@ BOLD = "\033[1m"
 ITALIC = "\033[3m"
 UNDERLINE = "\033[4m"
 BLACK = "\033[30m"
+GREEN = "\033[92m"
+YELLOW = "\033[93m"
+RED = "\033[91m"
+DARK_RED = "\033[31m"
+WHITE_BG = "\033[47m"
 YELLOW_BG = "\033[103m"
 GREEN_BG = "\033[102m"
 MAGENTA_BG = "\033[105m"
@@ -44,6 +49,18 @@ def curse(num:int):
 
 def title(text:str):
     return ITALIC + UNDERLINE + text + END
+
+
+def action(text:str):
+    return WHITE_BG + " " + text + " " + END
+
+
+def treasure(text:str):
+    return YELLOW_BG + " " + text + " " + END
+
+
+def victory(text:str):
+    return GREEN_BG + " " + text + " " + END
 
 
 card_width = 30

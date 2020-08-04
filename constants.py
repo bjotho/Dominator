@@ -118,15 +118,16 @@ duchy = "Duchy"
 province = "Province"
 
 # Prosperity cards
-platina = "platina"
-colony = "colony"
+platina = "Platina"
+colony = "Colony"
 
 starting_deck = {
     copper: 7,
     estate: 3
 }
 
-initial_supplies = [copper, silver, gold, estate, duchy, province, curse]
+initial_treasures = [copper, silver, gold]
+initial_victory_cards = [estate, duchy, province]
 
 # Dictionary for card text
 card_text = {
@@ -183,10 +184,14 @@ card_text = {
     estate: txf.vp(1, plain=True),
     duchy: txf.vp(3, plain=True),
     province: txf.vp(6, plain=True),
-    curse: txf.curse(-1)
+    curse: txf.curse(-1),
+    # Prosperity cards
+    platina: txf.coins(5, plain=True),
+    colony: txf.vp(10, plain=True)
 }
 
 card_list = {
+    # Base game cards
     cellar: {name: cellar, set: base, types: [action], cost: 2, text: card_text[cellar], pile_size: 10},
     chapel: {name: chapel, set: base, types: [action], cost: 2, text: card_text[chapel], pile_size: 10},
     moat: {name: moat, set: base, types: [action, reaction], cost: 2, text: card_text[moat], pile_size: 10},
@@ -227,5 +232,8 @@ card_list = {
     estate: {name: estate, set: base, types: [victory], cost: 2, text: card_text[estate], pile_size: [8, 12]},
     duchy: {name: duchy, set: base, types: [victory], cost: 5, text: card_text[duchy], pile_size: [8, 12]},
     province: {name: province, set: base, types: [victory], cost: 8, text: card_text[province], pile_size: [8, 12]},
-    curse: {name: curse, set: base, types: [curse], cost: 0, text: card_text[curse], pile_size: [10, 20, 30]}
+    curse: {name: curse, set: base, types: [curse], cost: 0, text: card_text[curse], pile_size: [10, 20, 30]},
+    # Prosperity cards
+    platina: {name: platina, set: prosperity, types: [treasure], cost: 9, text: card_text[platina], pile_size: 12},
+    colony: {name: colony, set: prosperity, types: [victory], cost: 11, text: card_text[colony], pile_size: [8, 12]}
 }
