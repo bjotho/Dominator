@@ -231,7 +231,7 @@ card_list = {
     gold: {name: gold, set: base, types: [treasure], cost: 6, text: card_text[gold], pile_size: 30},
     estate: {name: estate, set: base, types: [victory], cost: 2, text: card_text[estate], pile_size: [8, 12]},
     duchy: {name: duchy, set: base, types: [victory], cost: 5, text: card_text[duchy], pile_size: [8, 12]},
-    province: {name: province, set: base, types: [victory], cost: 8, text: card_text[province], pile_size: [1, 12]},
+    province: {name: province, set: base, types: [victory], cost: 8, text: card_text[province], pile_size: [8, 12]},
     curse: {name: curse, set: base, types: [curse], cost: 0, text: card_text[curse], pile_size: [10, 20, 30]},
     # Prosperity cards
     platina: {name: platina, set: prosperity, types: [treasure], cost: 9, text: card_text[platina], pile_size: 12},
