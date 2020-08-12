@@ -4,6 +4,7 @@ import numpy as np
 import constants as c
 import text_formatting as txf
 import card_methods
+import card_reactions
 
 
 class Player:
@@ -42,14 +43,21 @@ class Player:
 
     def play(self):
         if self.game.verbose:
-            print(self.name + "'s turn:")
-            print("Deck: " + str(len(self.deck)) + ",\tDiscard Pile: " + str(len(self.discard_pile)))
-            self.print_hand()
+            print(self.name + "\'s turn:")
+            if not self.human:
+                self.print_hand()
+                print("")
 
         while self.actions > 0:
             if self.human:
-                if self.game.verbose and len(self.active_cards) > 0:
-                    self.print_active_cards()
+                if self.game.verbose:
+                    print("Deck: " + str(len(self.deck)) + ",\tDiscard Pile: " + str(len(self.discard_pile)))
+                    self.print_hand()
+                    print("")
+                    print("Actions: " + str(self.actions))
+                    print("Buys: " + str(self.buys))
+                    if len(self.active_cards) > 0:
+                        self.print_active_cards()
                 card_string = input("Select an action card to play (card name), \"b\" to initiate buying phase, \"h\" "
                                     "to view hand, \"e\" to end turn, or \"x\" to exit game:")
                 if card_string == "x":
@@ -59,7 +67,6 @@ class Player:
                 elif card_string == "b":
                     break
                 elif card_string == "h":
-                    self.print_hand()
                     continue
                 elif card_string == "bb":
                     self.buy(direct_buy=True)
@@ -83,7 +90,7 @@ class Player:
                     continue
 
                 if self.game.verbose:
-                    if not card_methods.confirm_card("Play " + str(self.hand[card_ix].name + " (y/n)?")):
+                    if not card_methods.confirm_card("Play " + self.hand[card_ix].colored_name() + " (y/n)?"):
                         continue
 
                 self.hand[card_ix].play(self)
@@ -94,20 +101,27 @@ class Player:
                 else:
                     card = np.random.choice(action_cards)
                     if self.game.verbose:
-                        print(self.name + " plays " + card.name)
+                        print(self.name + " plays " + card.colored_name())
                     card.play(self)
 
         self.buy()
 
     def buy(self, direct_buy=False):
         if self.game.verbose:
-            print("Buying phase")
+            print("---Buying phase---")
         treasure_cards = [c.copper, c.silver, c.gold]
         if self.game.platina:
             treasure_cards.append(c.platina)
         hand_treasures = [card for card in self.hand if c.treasure in card.types]
         while any(card.name not in treasure_cards for card in hand_treasures):
             if self.human:
+                if self.game.verbose:
+                    print("Deck: " + str(len(self.deck)) + ",\tDiscard Pile: " + str(len(self.discard_pile)))
+                    self.print_hand()
+                    print("")
+                    print("Coins: " + txf.coins(self.coins, plain=True) + "\tBuys: " + str(self.buys))
+                    if len(self.active_cards) > 0:
+                        self.print_active_cards()
                 card_string = input("Select a treasure card to play (card name), \"e\" to end turn, \"b\" to buy, or "
                                     "\"h\" to view hand:")
                 if card_string == "x":
@@ -117,7 +131,6 @@ class Player:
                 elif card_string == "b":
                     break
                 elif card_string == "h":
-                    self.print_hand()
                     continue
                 elif card_string == "hh":
                     v_tmp = self.game.verbose
@@ -138,7 +151,7 @@ class Player:
                     continue
 
                 if self.game.verbose:
-                    if not card_methods.confirm_card("Play " + str(self.hand[card_ix].name + " (y/n)?")):
+                    if not card_methods.confirm_card("Play " + self.hand[card_ix].colored_name() + " (y/n)?"):
                         continue
 
                 self.hand[card_ix].play(self, action=False)
@@ -148,7 +161,7 @@ class Player:
                 playable_hand_treasures = [card for card in hand_treasures if card not in treasure_cards]
                 card = np.random.choice(playable_hand_treasures)
                 if self.game.verbose:
-                    print(self.name + " plays " + card.name)
+                    print(self.name + " plays " + card.colored_name())
                 card.play(self, action=False)
                 hand_treasures.remove(card)
 
@@ -204,7 +217,7 @@ class Player:
                     cost = c.card_list[pile.name][c.cost]
                     if self.coins >= cost:
                         if self.game.verbose:
-                            print(self.name + " buys " + pile.name)
+                            print(self.name + " buys " + pile.colored_name())
                         self.gain(pile, mute=True)
                         self.coins -= cost
                         self.buys -= 1
@@ -212,14 +225,14 @@ class Player:
                         print("You do not have enough coins")
                         continue
                 else:
-                    print("The " + pile.name + " pile is empty")
+                    print("The " + pile.colored_name() + " pile is empty")
                     continue
             else:
-                affordable_cards = [pile for pile in list(self.game.supply.piles.keys())
-                                    if self.coins >= c.card_list[pile][c.cost]]
-                pile = self.game.supply.piles[np.random.choice(affordable_cards)]
+                affordable_cards = [pile for pile in list(self.game.supply.piles.values())
+                                    if self.coins >= pile.cost and pile.number > 0]
+                pile = self.game.supply.piles[np.random.choice(affordable_cards).name]
                 if self.game.verbose:
-                    print(self.name + " buys " + pile.name)
+                    print(self.name + " buys " + pile.cards[-1].colored_name())
                 self.gain(pile, mute=True)
                 self.coins -= c.card_list[pile.name][c.cost]
                 self.buys -= 1
@@ -242,33 +255,49 @@ class Player:
         self.buys = 1
         self.coins = 0
         for _ in range(5):
-            self.draw()
+            self.draw(mute=True)
 
-    def draw(self):
+    def draw(self, mute=False, named=True, return_card=False):
         if len(self.deck) <= 0:
             if len(self.discard_pile) <= 0:
                 return
             else:
                 self.shuffle_deck()
 
-        self.hand.append(self.deck[-1])
+        if not mute and self.game.verbose:
+            if named:
+                print(self.name + " draws " + self.deck[-1].colored_name())
+            else:
+                print(self.name + " draws a card")
+        card = self.deck[-1]
+        self.hand.append(card)
         self.deck.pop()
 
-    def gain(self, pile, mute=False):
+        if return_card:
+            return card
+
+    def gain(self, pile, to_pile=None, mute=False):
         if pile.number <= 0:
             return
 
+        if to_pile is None:
+            to_pile = self.discard_pile
+
         if self.game.verbose and not mute:
-            print(self.name + " gains " + pile.name)
-        self.discard_pile.append(pile.cards[-1])
+            print(self.name + " gains " + pile.colored_name())
+        to_pile.append(pile.cards[-1])
         pile.remove()
 
     def trash(self, from_pile, card):
-        assert card in from_pile
-        if self.game.verbose:
-            print(self.name + " trashes " + card.name)
-        self.game.trash.append(card)
-        from_pile.remove(card)
+        try:
+            assert card in from_pile
+            if self.game.verbose:
+                print(self.name + " trashes " + card.colored_name())
+            self.game.trash.append(card)
+            from_pile.remove(card)
+        except:
+            if self.game.verbose:
+                print(card.name + " is not in expected location and was not trashed")
 
     def discard(self, from_pile, card):
         assert card in from_pile
@@ -276,12 +305,13 @@ class Player:
         from_pile.remove(card)
 
     def reveal(self, cards):
-        print(self.name + " reveals:")
-        if type(cards) is Card:
-            print("  " + cards.name)
-        elif type(cards) is list:
-            for card in cards:
-                print("  " + card.name)
+        if self.game.verbose:
+            print(self.name + " reveals:")
+            if type(cards) is Card:
+                print("  " + cards.colored_name())
+            elif type(cards) is list:
+                for card in cards:
+                    print("  " + card.colored_name())
 
     def reveal_hand(self):
         self.reveal(self.hand)
@@ -296,12 +326,16 @@ class Player:
                 print(card)
         else:
             for card in self.hand:
-                if c.action in card.types:
+                if c.reaction in card.types:
+                    print("  " + txf.reaction(card.name))
+                elif c.action in card.types:
                     print("  " + txf.action(card.name))
                 elif c.treasure in card.types:
                     print("  " + txf.treasure(card.name))
                 elif c.victory in card.types:
                     print("  " + txf.victory(card.name))
+                elif c.curse in card.types:
+                    print("  " + txf.curse_card(card.name))
                 else:
                     print("  " + card.name)
 
@@ -311,19 +345,19 @@ class Player:
             if self.game.verbose >= 2:
                 print(card)
             else:
-                print(card.name + "\t", end="")
+                print(card.colored_name() + "\t", end="")
 
         if self.game.verbose < 2:
             print("")
 
     def print_discard_pile(self):
-        print(self.name + " discard pile:")
+        print(self.name + "\'s discard pile:")
         if self.game.verbose >= 2:
             for card in self.discard_pile:
                 print(card)
         else:
             for card in self.discard_pile:
-                print(card.name)
+                print(card.colored_name())
 
 
 class Card:
@@ -347,6 +381,8 @@ class Card:
         # self.gain = gain
         # self.victory_points = victory_points
 
+        self.color = self.get_color()
+
     def play(self, player:Player, action=True, discard=True):
         tmp_deck = player.deck.copy()
         tmp_hand = player.hand.copy()
@@ -355,10 +391,30 @@ class Card:
         tmp_actions = player.actions
         tmp_buys = player.buys
         tmp_coins = player.coins
-        player.active_cards.append(self)
+        tmp_player_effects = {}
+        for p in player.game.players:
+            tmp_player_effects[p.name] = p.effects
+
+        if c.attack in self.types:
+            _players = [p for p in player.game.players if p is not player]
+            for p in _players:
+                for card in p.hand:
+                    if c.reaction in card.types:
+                        if c.reaction_triggers[card.name] == c.attack:
+                            if p.human:
+                                if card_methods.confirm_card("Will " + p.name + " reveal " + card.colored_name()
+                                                             + " reaction card (y/n)?"):
+                                    eval("card_reactions." + card.name.lower() + "_reaction(p, card)")
+                            else:
+                                if np.random.random() > 0:
+                                    eval("card_reactions." + card.name.lower() + "_reaction(p, card)")
+
         if discard:
+            player.active_cards.append(self)
             player.hand.remove(self)
         success = eval("card_methods." + self.name.lower() + "_card(player)")
+        for p in player.game.players:
+            p.effects = tmp_player_effects[p.name]
         if not success:
             player.deck = tmp_deck
             player.hand = tmp_hand
@@ -370,6 +426,23 @@ class Card:
             return
         if action:
             player.actions -= 1
+
+    def get_color(self):
+        if c.reaction in self.types:
+            return txf.BRIGHT_BLUE_BG
+        elif c.action in self.types:
+            return txf.WHITE_BG
+        elif c.treasure in self.types:
+            return txf.BRIGHT_YELLOW_BG
+        elif c.victory in self.types:
+            return txf.BRIGHT_GREEN_BG
+        elif c.curse in self.types:
+            return txf.BRIGHT_MAGENTA_BG
+        else:
+            return ""
+
+    def colored_name(self):
+        return self.color + " " + self.name + " " + txf.END
 
     def __str__(self):
         output = " " + "_" * (txf.card_width - 2) + " \n"
@@ -399,6 +472,7 @@ class Supply:
             supply = []
 
         self.piles = self.setup_piles(supply, sets)
+        self.spacing = self.spacing()
 
     def setup_piles(self, supply:list, sets):
         _piles = {}
@@ -463,14 +537,23 @@ class Supply:
 
         return False
 
+    def spacing(self):
+        return max([txf.visible_str_len(txf.bold("1234") + pile.colored_name() + ":") for pile in list(self.piles.values())])
+
     def __str__(self):
         output = "Supply:\n"
         if self.game.verbose >= 2:
             for pile in self.piles.items():
                 output += pile[1].__str__() + "\n"
         else:
-            for pile in list(self.piles.items()):
-                output +=  "  " + pile[0] + ": " + pile[1].get_color() + str(pile[1].number) + txf.END + "\n"
+            for pile in list(self.piles.values()):
+                line = txf.bold(str(pile.cost))
+                while txf.visible_str_len(line) < 4:
+                    line += " "
+                line += pile.colored_name() + ":"
+                while txf.visible_str_len(line) < self.spacing:
+                    line += " "
+                output += line + "  " + pile.get_color() + str(pile.number) + txf.END + "\n"
 
         return output
 
@@ -480,7 +563,6 @@ class Pile:
         self.num_players = num_players
         self.name = card_name
         self.cards = self.create_pile(card_name)
-        self.color = txf.GREEN
 
     def create_pile(self, card):
         _pile = []
@@ -498,6 +580,11 @@ class Pile:
         for _ in range(self.number):
             _pile.append(Card(**c.card_list[card]))
 
+        tmp_card = Card(**c.card_list[card])
+        self.set = tmp_card.set
+        self.types = tmp_card.types
+        self.cost = tmp_card.cost
+
         return _pile
 
     def add(self, card):
@@ -508,9 +595,13 @@ class Pile:
         self.cards.pop()
         self.number -= 1
 
+    def colored_name(self):
+        tmp_card = Card(**c.card_list[self.name])
+        return tmp_card.colored_name()
+
     def get_color(self):
-        if self.number <= 0:
-            return txf.DARK_RED
+        if self.number <= 2:
+            return txf.RED
 
         frac = float(self.number / self.max_number)
         if frac > 0.5:
@@ -560,47 +651,49 @@ class Game:
         return False
 
     def score(self):
-        print("Results:")
+        print("\n---Results---")
         for player in self.players:
             for card in player.all_cards():
-                if c.victory in card.types:
+                if c.victory in card.types or c.curse in card.types:
                     card.play(player, action=False, discard=False)
 
         self.players.sort(key=lambda p: p.victory_points, reverse=True)
         for i in range(len(self.players)):
-            print("#" + str(i + 1) + ": " + self.players[i].name + " with " + str(self.players[i].victory_points) + " VP")
+            print("#" + str(i + 1) + ": " + self.players[i].name + " with "
+                  + str(self.players[i].victory_points) + " VP")
 
         print("\n~~~Congratulations, " + self.players[0].name + "!~~~")
+
+    def print_decks(self):
+        print("\nPlayer decks:")
+        for p in self.players:
+            print("\n" + p.name + "\'s deck (" + str(len(p.all_cards())) + " cards):")
+            breakdown = self.deck_breakdown(p.all_cards())
+            for pair in list(breakdown.items()):
+                card = Card(**c.card_list[pair[0]])
+                print(txf.bold(str(pair[1]) + "x") + "\t" + card.colored_name())
+
+    @staticmethod
+    def deck_breakdown(deck:list):
+        breakdown = {}
+        for card in deck:
+            if card.name not in list(breakdown.keys()):
+                breakdown[card.name] = 1
+            else:
+                breakdown[card.name] += 1
+
+        return breakdown
 
 
 game_over = False
 num_players = 2
+supply_cards = [c.moat, c.village, c.woodcutter, c.vassal, c.merchant, c.bureaucrat, c.gardens, c.militia,
+                c.moneylender, c.poacher]
 
-game = Game(players=num_players, supply=[c.moat, c.chancellor], platina=True, colonies=True, verbose=1)
+game = Game(players=num_players, supply=supply_cards, platina=False, colonies=False, verbose=1)
 while not game_over:
     game.gameloop()
 
 game.score()
-
-# card_list = {
-#     c.cellar: {c.name: c.cellar, c.set: c.base, c.types: [c.action], c.cost: 2, c.text: c.card_text[c.cellar],
-#                c.actions: 1, c.cards: c.var},
-#     c.chapel: {c.name: c.chapel, c.set: c.base, c.types: [c.action], c.cost: 2, c.text: c.card_text[c.chapel],
-#                c.trash: 4},
-#     c.moat: {c.name: c.moat, c.set: c.base, c.types: [c.action, c.reaction], c.cost: 2, c.text: c.card_text[c.moat],
-#              c.cards: 2},
-#     c.chancellor: {c.name: c.chancellor, c.set: c.base_1e, c.types: [c.action], c.cost: 3,
-#                    c.text: c.card_text[c.chancellor], c.coins: 2},
-#     c.harbinger: {c.name: c.harbinger, c.set: c.base_2e, c.types: [c.action], c.cost: 3,
-#                   c.text: c.card_text[c.harbinger], c.actions: 1, c.cards: 1},
-#     c.merchant: {c.name: c.merchant, c.set: c.base_2e, c.types: [c.action], c.cost: 3, c.text: c.card_text[c.merchant],
-#                  c.actions: 1, c.cards: 1, c.coins: c.var},
-#     c.vassal: {c.name: c.vassal, c.set: c.base_2e, c.types: [c.action], c.cost: 3, c.text: c.card_text[c.vassal],
-#                c.coins: 2},
-#     c.village: {c.name: c.village, c.set: c.base, c.types: [c.action], c.cost: 3, c.text: c.card_text[c.village],
-#                 c.actions: 2, c.cards: 1},
-#     c.woodcutter: {c.name: c.woodcutter, c.set: c.base_1e, c.types: [c.action], c.cost: 3,
-#                    c.text: c.card_text[c.woodcutter], c.buys: 1, c.coins: 2},
-#     c.workshop: {c.name: c.workshop, c.set: c.base, c.types: [c.action], c.cost: 3, c.text: c.card_text[c.workshop],
-#                  c.gain: 1}
-# }
+if card_methods.confirm_card("Show final decks (y/n)?"):
+    game.print_decks()

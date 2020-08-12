@@ -6,17 +6,22 @@ BOLD = "\033[1m"
 ITALIC = "\033[3m"
 UNDERLINE = "\033[4m"
 BLACK = "\033[30m"
-GREEN = "\033[92m"
-YELLOW = "\033[93m"
-RED = "\033[91m"
-DARK_RED = "\033[31m"
+RED = "\033[31m"
+GREEN = "\033[32m"
+YELLOW = "\033[33m"
+BLUE = "\033[34m"
 WHITE_BG = "\033[47m"
-YELLOW_BG = "\033[103m"
-GREEN_BG = "\033[102m"
-MAGENTA_BG = "\033[105m"
-COIN = BOLD + BLACK + YELLOW_BG
-VP = BOLD + BLACK + GREEN_BG
-CURSE = BOLD + BLACK + MAGENTA_BG
+BRIGHT_RED = "\033[91m"
+BRIGHT_GREEN = "\033[92m"
+BRIGHT_YELLOW = "\033[93m"
+BRIGHT_BLUE = "\033[94m"
+BRIGHT_GREEN_BG = "\033[102m"
+BRIGHT_YELLOW_BG = "\033[103m"
+BRIGHT_BLUE_BG = "\033[104m"
+BRIGHT_MAGENTA_BG = "\033[105m"
+COIN = BOLD + BLACK + BRIGHT_YELLOW_BG
+VP = BOLD + BLACK + BRIGHT_GREEN_BG
+CURSE = BOLD + BLACK + BRIGHT_MAGENTA_BG
 
 placeholder_list = ["\0", "\1", "\2", "\3", "\4", "\5", "\6", "\7"]
 
@@ -55,12 +60,20 @@ def action(text:str):
     return WHITE_BG + " " + text + " " + END
 
 
+def reaction(text:str):
+    return BRIGHT_BLUE_BG + " " + text + " " + END
+
+
 def treasure(text:str):
-    return YELLOW_BG + " " + text + " " + END
+    return BRIGHT_YELLOW_BG + " " + text + " " + END
 
 
 def victory(text:str):
-    return GREEN_BG + " " + text + " " + END
+    return BRIGHT_GREEN_BG + " " + text + " " + END
+
+
+def curse_card(text:str):
+    return BRIGHT_MAGENTA_BG + " " + text + " " + END
 
 
 card_width = 30
@@ -166,3 +179,23 @@ def formatted_str_len(text):
         return total_len
 
     return len(text)
+
+
+def visible_str_len(text):
+    match_bold = re.findall(r"(\033\[1m(.+?)\033\[0m)+", text)
+    match_italic = re.findall(r"(\033\[3m(.+?)\033\[0m)+", text)
+    match_coin_vp_curse = re.findall(r"(\033\[1m\033\[30m\033\[10[0-9]m(.+?)\033\[0m)+", text)
+    match_action = re.findall(r"(\033\[47m(.+?)\033\[0m)+", text)
+    match_r_t_v_c = re.findall(r"(\033\[10[0-9]m(.+?)\033\[0m)+", text)
+    match_title = re.findall(r"(\033\[3m\033\[4m(.+?)\033\[0m)+", text)
+    matches = [match_bold, match_italic, match_coin_vp_curse, match_action, match_r_t_v_c, match_title]
+    groups = []
+    for match in matches:
+        if match:
+            groups.append(match)
+
+    total_len = len(text)
+    for group in groups:
+        total_len += (len(group[0][1]) - len(group[0][0]))
+
+    return total_len
