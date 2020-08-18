@@ -15,6 +15,7 @@ class Player:
         self.hand = []
         self.discard_pile = []
         self.active_cards = []
+        self.set_aside_cards = []
         self.effects = []
         self.actions = 1
         self.buys = 1
@@ -248,8 +249,11 @@ class Player:
             self.discard_pile.append(card)
         for card in self.active_cards:
             self.discard_pile.append(card)
+        for card in self.set_aside_cards:
+            self.discard_pile.append(card)
         self.hand.clear()
         self.active_cards.clear()
+        self.set_aside_cards.clear()
         self.effects.clear()
         self.actions = 1
         self.buys = 1
@@ -257,7 +261,7 @@ class Player:
         for _ in range(5):
             self.draw(mute=True)
 
-    def draw(self, mute=False, named=True, return_card=False):
+    def draw(self, mute=False, named=True, return_card=False, to_pile=None):
         if len(self.deck) <= 0:
             if len(self.discard_pile) <= 0:
                 return
@@ -270,7 +274,10 @@ class Player:
             else:
                 print(self.name + " draws a card")
         card = self.deck[-1]
-        self.hand.append(card)
+        if to_pile is None:
+            self.hand.append(card)
+        else:
+            to_pile.append(card)
         self.deck.pop()
 
         if return_card:
@@ -300,9 +307,22 @@ class Player:
                 print(card.name + " is not in expected location and was not trashed")
 
     def discard(self, from_pile, card):
-        assert card in from_pile
-        self.discard_pile.append(card)
-        from_pile.remove(card)
+        try:
+            assert card in from_pile
+            self.discard_pile.append(card)
+            from_pile.remove(card)
+        except:
+            if self.game.verbose:
+                print(card.name + " is not in expected location and was not discarded")
+
+    def set_aside(self, from_pile, card):
+        try:
+            assert card in from_pile
+            self.set_aside_cards.append(card)
+            from_pile.remove(card)
+        except:
+            if self.game.verbose:
+                print(card.name + " is not in expected location and was not set aside")
 
     def reveal(self, cards):
         if self.game.verbose:
@@ -317,7 +337,7 @@ class Player:
         self.reveal(self.hand)
 
     def all_cards(self):
-        return self.deck + self.hand + self.active_cards + self.discard_pile
+        return self.deck + self.hand + self.active_cards + self.set_aside_cards + self.discard_pile
 
     def print_hand(self):
         print(self.name + "\'s hand:")
@@ -359,6 +379,9 @@ class Player:
             for card in self.discard_pile:
                 print(card.colored_name())
 
+    def __repr__(self):
+        return self.name
+
 
 class Card:
     def __init__(self, name, set, types:list, cost, text, actions=None, villagers=None, cards=None,
@@ -388,6 +411,7 @@ class Card:
         tmp_hand = player.hand.copy()
         tmp_active_cards = player.active_cards.copy()
         tmp_discard_pile = player.discard_pile.copy()
+        tmp_set_aside_cards = player.set_aside_cards.copy()
         tmp_actions = player.actions
         tmp_buys = player.buys
         tmp_coins = player.coins
@@ -420,6 +444,7 @@ class Card:
             player.hand = tmp_hand
             player.active_cards = tmp_active_cards
             player.discard_pile = tmp_discard_pile
+            player.set_aside_cards = tmp_set_aside_cards
             player.actions = tmp_actions
             player.buys = tmp_buys
             player.coins = tmp_coins
@@ -463,6 +488,9 @@ class Card:
         output += cost_string_left + cost_string_right
         output += "|" + "_" * (txf.card_width - 2) + "|\n"
         return output
+
+    def __repr__(self):
+        return self.name
 
 
 class Supply:
@@ -687,8 +715,8 @@ class Game:
 
 game_over = False
 num_players = 2
-supply_cards = [c.moat, c.village, c.woodcutter, c.vassal, c.merchant, c.bureaucrat, c.gardens, c.militia,
-                c.moneylender, c.poacher]
+supply_cards = [c.moat, c.village, c.woodcutter, c.vassal, c.merchant, c.bureaucrat, c.gardens, c.smithy, c.spy,
+                c.thief]
 
 game = Game(players=num_players, supply=supply_cards, platina=False, colonies=False, verbose=1)
 while not game_over:

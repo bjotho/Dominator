@@ -515,14 +515,105 @@ def remodel_card(player):
 
     return True
 
+
+def smithy_card(player):
+    for _ in range(3):
+        player.draw()
+
+    return True
+
+
+def spy_card(player):
+    player.draw()
+    player.actions += 1
+    players = [p for p in player.game.players if c.moat not in p.effects]
+    for p in players:
+        _reveal_card = p.draw(mute=True, return_card=True, to_pile=p.set_aside_cards)
+        p.reveal(_reveal_card)
+        if player.human:
+            if confirm_card("Put back on deck (y) or discard (n)?:", mute_n=True):
+                if player.game.verbose:
+                    print(_reveal_card.colored_name() + " put back on deck")
+                p.deck.append(_reveal_card)
+                p.set_aside_cards.pop()
+            else:
+                if player.game.verbose:
+                    print(_reveal_card.colored_name() + " discarded")
+                p.discard(p.set_aside_cards, _reveal_card)
+        else:
+            if np.random.random() > 0.5:
+                if player.game.verbose:
+                    print(_reveal_card.colored_name() + " discarded")
+                p.discard(p.set_aside_cards, _reveal_card)
+            else:
+                if player.game.verbose:
+                    print(_reveal_card.colored_name() + " put back on deck")
+                p.deck.append(_reveal_card)
+                p.set_aside_cards.pop()
+
+    return True
+
+
+def thief_card(player):
+    victims = [p for p in player.game.players if (c.moat not in p.effects) and (p is not player)]
+    for v in victims:
+        for _ in range(2):
+            v.draw(mute=True, to_pile=v.set_aside_cards)
+        v.reveal(v.set_aside_cards)
+        eligible_cards = [card for card in v.set_aside_cards if c.treasure in card.types]
+        trash_card = None
+        if len(eligible_cards) <= 0:
+            continue
+        elif len(eligible_cards) == 1:
+            trash_card = eligible_cards[0]
+            v.trash(v.set_aside_cards, trash_card)
+        else:
+            if v.human:
+                while True:
+                    trash_card_str = input("Select card to trash (card name):")
+                    try:
+                        trash_card_str = trash_card_str[0].upper() + trash_card_str[1:].lower()
+                        for card in eligible_cards:
+                            if card.name == trash_card_str:
+                                trash_card = card
+                                break
+                        assert trash_card in eligible_cards
+                        v.trash(v.set_aside_cards, trash_card)
+                        break
+                    except:
+                        if player.game.verbose:
+                            print("Invalid input")
+                            continue
+            else:
+                trash_card = np.random.choice(eligible_cards)
+                v.trash(v.set_aside_cards, trash_card)
+
+        if player.human:
+            if confirm_card("Gain " + trash_card.colored_name() + " (y/n)?", mute_n=True):
+                if player.game.verbose:
+                    print(player.name + " gains " + trash_card.colored_name())
+                player.discard_pile.append(trash_card)
+                player.game.trash[::-1].remove(trash_card)
+        else:
+            if np.random.random() > 0.5:
+                if player.game.verbose:
+                    print(player.name + " gains " + trash_card.colored_name())
+                player.discard_pile.append(trash_card)
+                player.game.trash[::-1].remove(trash_card)
+
+    for v in victims:
+        for card in v.set_aside_cards:
+            v.discard(v.set_aside_cards, card)
+
+    return True
+
 # card_text = {
-#     remodel: "Trash a card from your hand. Gain a card costing up to " + txf.coins(2, plain=True) + " more than it.",
-#     smithy: txf.bold("+3 Cards"),
-#     spy: txf.bold("+1 Card") + "\n" + txf.bold("+1 Action") + "\nEach player (including you) reveals the top card of "
-#         "their deck and either discards it or puts it back, your choice.",
-#     thief: "Each other player reveals the top 2 cards of their deck.\nIf they revealed any Treasure cards, they trash "
-#         "one of them that you choose. You may gain any or all of these trashed cards. They discard the other revealed "
-#         "cards.",
+#     throne_room: "You may play an Action card from your hand twice.",
+#     bandit: "Gain a Gold. Each other player reveals the top 2 cards of their deck, trashes a revealed Treasure other "
+#         "than Copper, and discards the rest.",
+#     council_room: txf.bold("+4 Cards") + "\n" + txf.bold("+1 Buy") + "\nEach other player draws a card.",
+#     festival: txf.bold("+2 Actions") + "\n" + txf.bold("+1 Buy") + "\n" + txf.coins(2),
+#     laboratory: txf.bold("+2 Cards") + "\n" + txf.bold("+1 Action"),
 # }
 
 
