@@ -199,3 +199,45 @@ def visible_str_len(text):
         total_len += (len(group[0][1]) - len(group[0][0]))
 
     return total_len
+
+
+def get_card(input_str, from_pile, return_index=False):
+    card_str = ""
+    out_card = None
+    words = input_str.split()
+    for word in words:
+        card_str += word[0].upper() + word[1:].lower() + " "
+    card_str = card_str[:-1]
+
+    for card in from_pile:
+        if card.name == card_str:
+            out_card = card
+            break
+
+    if not out_card:
+        for card in from_pile:
+            if card.name == input_str:
+                out_card = card
+                break
+
+    if return_index:
+        if out_card:
+            out_card = (out_card, from_pile.index(out_card))
+        else:
+            out_card = (None, None)
+
+    return out_card
+
+
+def get_cards(input_str, from_pile):
+    tmp_pile = from_pile.copy()
+    out_cards = []
+    for card_str in input_str.split(","):
+        card, i = get_card(card_str, tmp_pile, return_index=True)
+        if card:
+            out_cards.append(card)
+            del tmp_pile[i]
+        else:
+            return None
+
+    return out_cards

@@ -59,42 +59,40 @@ class Player:
                     print("Buys: " + str(self.buys))
                     if len(self.active_cards) > 0:
                         self.print_active_cards()
-                card_string = input("Select an action card to play (card name), \"b\" to initiate buying phase, \"h\" "
+                card_str = input("Select an action card to play (card name), \"b\" to initiate buying phase, \"h\" "
                                     "to view hand, \"e\" to end turn, or \"x\" to exit game:")
-                if card_string == "x":
+                if card_str == "x":
                     sys.exit(0)
-                elif card_string == "e":
+                elif card_str == "e":
                     return
-                elif card_string == "b":
+                elif card_str == "b":
                     break
-                elif card_string == "h":
+                elif card_str == "h":
+                    if not self.game.verbose:
+                        self.print_hand()
                     continue
-                elif card_string == "bb":
+                elif card_str == "bb":
                     self.buy(direct_buy=True)
                     return
-                elif card_string == "hh":
+                elif card_str == "hh":
                     v_tmp = self.game.verbose
                     self.game.verbose = 2
                     self.print_hand()
                     self.game.verbose = v_tmp
                     continue
                 try:
-                    card_string = card_string[0].upper() + card_string[1:].lower()
-                    i = 0
-                    while card_string != self.hand[i].name:
-                        i += 1
+                    play_card = txf.get_card(card_str, self.hand)
 
-                    assert c.action in self.hand[i].types
-                    card_ix = i
+                    assert c.action in play_card.types
                 except:
                     print("Invalid input, please try again.")
                     continue
 
                 if self.game.verbose:
-                    if not card_methods.confirm_card("Play " + self.hand[card_ix].colored_name() + " (y/n)?"):
+                    if not card_methods.confirm_card("Play " + play_card.colored_name() + " (y/n)?"):
                         continue
 
-                self.hand[card_ix].play(self)
+                play_card.play(self)
             else:
                 action_cards = [card for card in self.hand if c.action in card.types]
                 if len(action_cards) == 0:
@@ -123,40 +121,36 @@ class Player:
                     print("Coins: " + txf.coins(self.coins, plain=True) + "\tBuys: " + str(self.buys))
                     if len(self.active_cards) > 0:
                         self.print_active_cards()
-                card_string = input("Select a treasure card to play (card name), \"e\" to end turn, \"b\" to buy, or "
+                card_str = input("Select a treasure card to play (card name), \"e\" to end turn, \"b\" to buy, or "
                                     "\"h\" to view hand:")
-                if card_string == "x":
+                if card_str == "x":
                     sys.exit(0)
-                elif card_string == "e":
+                elif card_str == "e":
                     return
-                elif card_string == "b":
+                elif card_str == "b":
                     break
-                elif card_string == "h":
+                elif card_str == "h":
                     continue
-                elif card_string == "hh":
+                elif card_str == "hh":
                     v_tmp = self.game.verbose
                     self.game.verbose = 2
                     self.print_hand()
                     self.game.verbose = v_tmp
                     continue
                 try:
-                    card_string = card_string[0].upper() + card_string[1:].lower()
-                    i = 0
-                    while card_string != self.hand[i].name:
-                        i += 1
+                    treasure_card = txf.get_card(card_str, self.hand)
 
-                    assert c.treasure in self.hand[i].types
-                    card_ix = i
+                    assert c.treasure in treasure_card.types
                 except:
                     print("Invalid input, please try again.")
                     continue
 
                 if self.game.verbose:
-                    if not card_methods.confirm_card("Play " + self.hand[card_ix].colored_name() + " (y/n)?"):
+                    if not card_methods.confirm_card("Play " + treasure_card.colored_name() + " (y/n)?"):
                         continue
 
-                self.hand[card_ix].play(self, action=False)
-                hand_treasures.remove(self.hand[card_ix])
+                treasure_card.play(self, action=False)
+                hand_treasures.remove(treasure_card)
 
             else:
                 playable_hand_treasures = [card for card in hand_treasures if card not in treasure_cards]
@@ -191,7 +185,7 @@ class Player:
                     continue
                 elif buy_or_view == "vv":
                     v_tmp = self.game.verbose
-                    self.game.verbose = 2
+                    self.game.verbose = 3
                     print(self.game.supply)
                     self.game.verbose = v_tmp
                     continue
@@ -202,15 +196,16 @@ class Player:
                     self.game.verbose = v_tmp
                     continue
                 print(self.game.supply)
-                card_string = input("Select a card (card name):")
-                if len(card_string) == 0:
+                card_str = input("Select a card (card name):")
+                if len(card_str) == 0:
                     print("Invalid card")
                     continue
-                card_string = card_string[0].upper() + card_string[1:].lower()
-                if card_string not in list(self.game.supply.piles.keys()):
-                    print("Invalid card")
+                piles = [Card(**c.card_list[pile.name]) for pile in list(self.game.supply.piles.values())]
+                buy_card = txf.get_card(card_str, piles)
+                if buy_card is None:
+                    print("Invalid input")
                     continue
-                pile = self.game.supply.piles[card_string]
+                pile = self.game.supply.piles[buy_card.name]
                 if buy_or_view == "v":
                     print(Card(**c.card_list[pile.name]))
                     continue
@@ -233,7 +228,7 @@ class Player:
                                     if self.coins >= pile.cost and pile.number > 0]
                 pile = self.game.supply.piles[np.random.choice(affordable_cards).name]
                 if self.game.verbose:
-                    print(self.name + " buys " + pile.cards[-1].colored_name())
+                    print(self.name + " buys " + pile.colored_name())
                 self.gain(pile, mute=True)
                 self.coins -= c.card_list[pile.name][c.cost]
                 self.buys -= 1
@@ -323,6 +318,15 @@ class Player:
         except:
             if self.game.verbose:
                 print(card.name + " is not in expected location and was not set aside")
+
+    def move(self, from_pile, to_pile, card):
+        try:
+            assert card in from_pile
+            to_pile.append(card)
+            from_pile.remove(card)
+        except:
+            if self.game.verbose:
+                print(card.colored_name() + " is not in expected location and was not moved")
 
     def reveal(self, cards):
         if self.game.verbose:
@@ -434,9 +438,8 @@ class Card:
                                     eval("card_reactions." + card.name.lower() + "_reaction(p, card)")
 
         if discard:
-            player.active_cards.append(self)
-            player.hand.remove(self)
-        success = eval("card_methods." + self.name.lower() + "_card(player)")
+            player.move(from_pile=player.hand, to_pile=player.active_cards, card=self)
+        success = eval("card_methods." + self.name.lower().replace(" ", "_") + "_card(player)")
         for p in player.game.players:
             p.effects = tmp_player_effects[p.name]
         if not success:
@@ -570,7 +573,7 @@ class Supply:
 
     def __str__(self):
         output = "Supply:\n"
-        if self.game.verbose >= 2:
+        if self.game.verbose >= 3:
             for pile in self.piles.items():
                 output += pile[1].__str__() + "\n"
         else:
@@ -715,8 +718,8 @@ class Game:
 
 game_over = False
 num_players = 2
-supply_cards = [c.moat, c.village, c.woodcutter, c.vassal, c.merchant, c.bureaucrat, c.gardens, c.smithy, c.spy,
-                c.thief]
+supply_cards = [c.cellar, c.harbinger, c.workshop, c.merchant, c.bureaucrat, c.feast, c.militia, c.poacher,
+                c.remodel, c.throne_room]
 
 game = Game(players=num_players, supply=supply_cards, platina=False, colonies=False, verbose=1)
 while not game_over:
