@@ -57,23 +57,23 @@ def title(text:str):
 
 
 def action(text:str):
-    return WHITE_BG + " " + text + " " + END
+    return BLACK + WHITE_BG + " " + text + " " + END
 
 
 def reaction(text:str):
-    return BRIGHT_BLUE_BG + " " + text + " " + END
+    return BLACK + BRIGHT_BLUE_BG + " " + text + " " + END
 
 
 def treasure(text:str):
-    return BRIGHT_YELLOW_BG + " " + text + " " + END
+    return BLACK + BRIGHT_YELLOW_BG + " " + text + " " + END
 
 
 def victory(text:str):
-    return BRIGHT_GREEN_BG + " " + text + " " + END
+    return BLACK + BRIGHT_GREEN_BG + " " + text + " " + END
 
 
 def curse_card(text:str):
-    return BRIGHT_MAGENTA_BG + " " + text + " " + END
+    return BLACK + BRIGHT_MAGENTA_BG + " " + text + " " + END
 
 
 card_width = 30

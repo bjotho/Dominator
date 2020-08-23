@@ -126,8 +126,8 @@ starting_deck = {
     estate: 3
 }
 
-initial_treasures = [copper, silver, gold]
-initial_victory_cards = [estate, duchy, province]
+initial_treasures = [gold, silver, copper]
+initial_victory_cards = [province, duchy, estate]
 
 # Dictionary for card text
 card_text = {
