@@ -5,6 +5,7 @@ import constants as c
 import text_formatting as txf
 import card_methods
 import card_reactions
+import card_costs
 
 
 class Player:
@@ -22,6 +23,7 @@ class Player:
         self.buys = 1
         self.coins = 0
         self.victory_points = 0
+        self.victory_tokens = 0
 
         self.deck = self.create_deck(shelters)
         self.shuffle_deck()
@@ -58,6 +60,8 @@ class Player:
                     print("")
                     print("Actions: " + str(self.actions))
                     print("Buys: " + str(self.buys))
+                    if c.prosperity in [c.card_list[pile.name][c.set] for pile in list(self.game.supply.piles.values())]:
+                        print(txf.vt(self.victory_tokens, plain=True))
                     if len(self.active_cards) > 0:
                         self.print_active_cards()
                 card_str = input("Select an action card to play (card name), \"b\" to initiate buying phase, \"h\" "
@@ -113,9 +117,10 @@ class Player:
         if self.game.verbose:
             print("---Buying phase---")
         treasure_cards = [c.copper, c.silver, c.gold]
-        if self.game.platina:
-            treasure_cards.append(c.platina)
+        if self.game.platinum:
+            treasure_cards.append(c.platinum)
         hand_treasures = [card for card in self.hand if c.treasure in card.types]
+        skip_non_base_treasures = False
         while any(card.name not in treasure_cards for card in hand_treasures):
             if self.human:
                 if self.game.verbose:
@@ -168,7 +173,8 @@ class Player:
                 hand_treasures.remove(card)
 
         for t_card in hand_treasures:
-            t_card.play(self, action=False)
+            if t_card.name in treasure_cards:
+                t_card.play(self, action=False)
 
         while self.buys > 0:
             if self.human:
@@ -222,7 +228,7 @@ class Player:
                     print(Card(**c.card_list[pile.name]))
                     continue
                 if pile.number > 0:
-                    cost = c.card_list[pile.name][c.cost]
+                    cost = pile.get_cost(self)
                     if self.coins >= cost:
                         if self.game.verbose:
                             print(self.name + " buys " + pile.colored_name())
@@ -237,12 +243,12 @@ class Player:
                     continue
             else:
                 affordable_cards = [pile for pile in list(self.game.supply.piles.values())
-                                    if self.coins >= pile.cost and pile.number > 0]
+                                    if self.coins >= pile.get_cost(self) and pile.number > 0]
                 pile = self.game.supply.piles[np.random.choice(affordable_cards).name]
                 if self.game.verbose:
                     print(self.name + " buys " + pile.colored_name())
                 self.gain(pile, mute=True)
-                self.coins -= c.card_list[pile.name][c.cost]
+                self.coins -= pile.get_cost(self)
                 self.buys -= 1
 
     def shuffle_deck(self):
@@ -304,8 +310,28 @@ class Player:
 
         if self.game.verbose and not mute:
             print(self.name + " gains " + pile.colored_name())
-        to_pile.append(pile.cards[-1])
+        gain_card = pile.cards[-1]
+        to_pile.append(gain_card)
         pile.remove()
+        for card in self.hand:
+            if c.reaction in card.types:
+                if c.reaction_triggers[card.name] == c.gain:
+                    if self.human:
+                        if card_methods.confirm_card("Will " + self.name + " reveal " + card.colored_name()
+                                                     + " reaction card (y/n)?", mute_n=True):
+                            eval("card_reactions." + card.name.lower().replace(" ", "_")
+                                 + "_reaction(self, card, gain_card, to_pile)")
+                    else:
+                        if np.random.random() > 0:
+                            eval("card_reactions." + card.name.lower().replace(" ", "_")
+                                 + "_reaction(self, card, gain_card, to_pile)")
+
+        if c.trade_route in [_pile.name for _pile in list(self.game.supply.piles.values())]:
+            if c.victory in pile.types:
+                if pile.name not in self.game.trade_route_mat:
+                    self.game.trade_route_mat.append(pile.name)
+                    if self.game.verbose:
+                        print("Coin token moved from " + pile.colored_name() + " pile to Trade Route mat")
 
     def trash(self, from_pile, card):
         try:
@@ -316,7 +342,7 @@ class Player:
             from_pile.remove(card)
         except:
             if self.game.verbose:
-                print(card.name + " is not in expected location and was not trashed")
+                print(card.colored_name() + " is not in expected location and was not trashed")
 
     def discard(self, from_pile, card):
         try:
@@ -434,7 +460,10 @@ class Card:
         self.name = name
         self.set = set
         self.types = types
-        self.cost = cost
+        if type(cost) is int:
+            self.cost = cost
+        else:
+            self.cost = eval("card_costs." + self.name.lower().replace(" ", "_") + "_cost")
         self.text = text
         # self.actions = actions
         # self.villagers = villagers
@@ -473,11 +502,11 @@ class Card:
                         if c.reaction_triggers[card.name] == c.attack:
                             if p.human:
                                 if card_methods.confirm_card("Will " + p.name + " reveal " + card.colored_name()
-                                                             + " reaction card (y/n)?"):
-                                    eval("card_reactions." + card.name.lower() + "_reaction(p, card)")
+                                                             + " reaction card (y/n)?", mute_n=True):
+                                    eval("card_reactions." + card.name.lower().replace(" ", "_") + "_reaction(p, card)")
                             else:
                                 if np.random.random() > 0:
-                                    eval("card_reactions." + card.name.lower() + "_reaction(p, card)")
+                                    eval("card_reactions." + card.name.lower().replace(" ", "_") + "_reaction(p, card)")
 
         if discard:
             player.move(from_pile=player.hand, to_pile=player.active_cards, card=self)
@@ -504,6 +533,12 @@ class Card:
             player.actions -= 1
 
         return True
+
+    def get_cost(self, player=None, printing=False):
+        if type(self.cost) is int:
+            return self.cost
+        else:
+            return self.cost(player, printing)
 
     def get_color(self):
         if c.reaction in self.types:
@@ -536,9 +571,10 @@ class Card:
             types_string += txf.italic(t) + " - "
 
         output += txf.center(types_string[:-3])
-        cost_string_left = "|" + txf.coins(self.cost, plain=True)
-        cost_string_right = " " * (txf.card_width - (txf.formatted_str_len(cost_string_left) + 3)) + "|\n"
-        output += cost_string_left + cost_string_right
+        cost_string = txf.coins(self.get_cost(printing=True), plain=True)
+        len_cost_string_left = txf.formatted_str_len(cost_string)
+        cost_string_right = " " * ((txf.card_width - len_cost_string_left) - 2) + "|\n"
+        output += "|" + cost_string + cost_string_right
         output += "|" + "_" * (txf.card_width - 2) + "|\n"
         return output
 
@@ -557,8 +593,8 @@ class Supply:
 
     def setup_piles(self, supply:list, sets):
         _piles = {}
-        if self.game.platina:
-            _piles[c.platina] = Pile(len(self.game.players), c.platina)
+        if self.game.platinum:
+            _piles[c.platinum] = Pile(len(self.game.players), c.platinum)
         for pile in c.initial_treasures:
             _piles[pile] = Pile(len(self.game.players), pile)
         if self.game.colonies:
@@ -588,7 +624,7 @@ class Supply:
 
         while len(_kingdom_card_piles) < 10:
             new_pile = np.random.choice(list(c.card_list.keys()))
-            if new_pile == c.platina or new_pile == c.colony:
+            if new_pile == c.platinum or new_pile == c.colony:
                 continue
             if new_pile not in [p for p in list(_piles.keys()) + [kcp.name for kcp in _kingdom_card_piles]]:
                 if sets:
@@ -596,7 +632,7 @@ class Supply:
                         continue
                 _kingdom_card_piles.append(Pile(len(self.game.players), new_pile))
 
-        _kingdom_card_piles.sort(key=lambda p: p.cost, reverse=True)
+        _kingdom_card_piles.sort(key=lambda p: p.get_cost(), reverse=True)
 
         _kingdom_cards = {}
         for pile in _kingdom_card_piles:
@@ -625,7 +661,8 @@ class Supply:
         return False
 
     def spacing(self):
-        return max([txf.visible_str_len(txf.bold("1234") + pile.colored_name() + ":") for pile in list(self.piles.values())])
+        return max([txf.visible_str_len(txf.bold("1234") + pile.colored_name() + ":")
+                    for pile in list(self.piles.values())])
 
     def __str__(self):
         output = "Supply:\n"
@@ -634,13 +671,16 @@ class Supply:
                 output += pile[1].__str__() + "\n"
         else:
             for pile in list(self.piles.values()):
-                line = txf.bold(str(pile.cost))
+                line = txf.bold(str(pile.get_cost(printing=True)))
                 while txf.visible_str_len(line) < 4:
                     line += " "
                 line += pile.colored_name() + ":"
                 while txf.visible_str_len(line) < self.spacing:
                     line += " "
                 output += line + "  " + pile.get_color() + str(pile.number) + txf.END + "\n"
+
+        if c.trade_route in [pile.name for pile in list(self.piles.values())]:
+            output += "\nTrade Route mat tokens: " + txf.coins(num=len(self.game.trade_route_mat), plain=True)
 
         return output
 
@@ -686,6 +726,12 @@ class Pile:
         tmp_card = Card(**c.card_list[self.name])
         return tmp_card.colored_name()
 
+    def get_cost(self, player=None, printing=False):
+        if type(self.cost) is int:
+            return self.cost
+        else:
+            return self.cost(player, printing)
+
     def get_color(self):
         if self.number <= 2:
             return txf.RED
@@ -703,15 +749,16 @@ class Pile:
         return output + Card(**c.card_list[self.name]).__str__()
 
     def __repr__(self):
-        return self.name
+        return self.name + " pile object"
 
 
 class Game:
-    def __init__(self, players:int, supply=None, sets=None, platina=False, colonies=False, shelters=False, verbose=1):
-        self.platina = platina
+    def __init__(self, players:int, supply=None, sets=None, platinum=False, colonies=False, shelters=False, verbose=1):
+        self.platinum = platinum
         self.colonies = colonies
         self.verbose = verbose
         self.trash = []
+        self.trade_route_mat = []
         self.turn = 0
         self.game_over = False
         self.players = [Player(self, name="Player " + str(i + 1), shelters=shelters) for i in range(players)]
@@ -765,7 +812,7 @@ class Game:
                 print(txf.bold(str(pair[1]) + "x") + "\t" + card.colored_name())
 
     def print_trash(self):
-        print("\nTrash:")
+        print("\nTrash (" + str(len(self.trash)) + " cards):")
         breakdown = self.deck_breakdown(self.trash)
         for pair in list(breakdown.items()):
             card = Card(**c.card_list[pair[0]])
@@ -784,9 +831,10 @@ class Game:
 
 
 num_players = 2
-supply_cards = []
+supply_cards = [c.loan, c.trade_route, c.watchtower]
+active_sets = [c.base]
 
-game = Game(players=num_players, supply=supply_cards, platina=True, colonies=True, verbose=1)
+game = Game(players=num_players, supply=supply_cards, sets=active_sets, platinum=True, colonies=True, verbose=1)
 while not game.game_over:
     game.gameloop()
 

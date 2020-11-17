@@ -34,7 +34,14 @@ def italic(text:str):
     return ITALIC + text + END
 
 
-def coins(num:int, plain=False):
+def money(plain=True):
+    if plain:
+        return COIN + "  " + END
+    else:
+        return "+" + COIN + "  " + END
+
+
+def coins(num, plain=False):
     if plain:
         return COIN + " " + str(num) + " " + END
     else:
@@ -46,6 +53,13 @@ def vp(num:int, plain=False):
         return VP + " " + str(num) + " VP " + END
     elif num >= 0:
         return VP + " +" + str(num) + " VP " + END
+
+
+def vt(num:int, plain=False):
+    if num < 0 or plain:
+        return VP + " " + str(num) + " VT " + END
+    elif num >= 0:
+        return VP + " +" + str(num) + " VT " + END
 
 
 def curse(num:int):
@@ -132,17 +146,20 @@ def center(text):
         match_coin_vp_curse = re.findall(r"(\033\[1m\033\[30m\033\[10[0-9]m(.+?)\033\[0m)+", line)
         match_title = re.findall(r"(\033\[3m\033\[4m(.+?)\033\[0m)+", line)
         if match_bold or match_italic or match_coin_vp_curse or match_title:
+            groups = []
             if match_coin_vp_curse:
-                groups = match_coin_vp_curse
-            elif match_title:
-                groups = match_title
-            else:
-                if match_bold:
-                    groups = match_bold
-                else:
-                    groups = match_italic
+                for match in match_coin_vp_curse:
+                    groups.append(match)
+            if match_title:
+                for match in match_title:
+                    groups.append(match)
+            if match_bold:
+                for match in match_bold:
+                    groups.append(match)
+            if match_italic:
+                for match in match_italic:
+                    groups.append(match)
 
-            # print(groups)
             output += center_recursive(line, format_groups=groups)
 
         else:
@@ -174,8 +191,8 @@ def formatted_str_len(text):
 
         total_len = 0
         for group in groups:
-            total_len += len(group)
-
+            total_len += len(group[1])
+        
         return total_len
 
     return len(text)

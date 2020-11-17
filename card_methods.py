@@ -2,8 +2,6 @@ import numpy as np
 import constants as c
 import text_formatting as txf
 
-# TODO: Implement method for each card
-
 
 def confirm_card(confirmation_str, mute_n=False):
     while True:
@@ -17,6 +15,8 @@ def confirm_card(confirmation_str, mute_n=False):
             return False
         return True
 
+
+# Base game cards
 
 def cellar_card(player):
     if len(player.hand) == 0:
@@ -747,9 +747,9 @@ def mine_card(player):
                     print("Invalid input")
                     continue
                 player.trash(player.hand, _mine_card)
-                player.gain(gain_pile, to_pile=player.hand, mute=True)
                 if player.game.verbose:
                     print(player.name + " gains " + gain_pile.colored_name() + " to their hand")
+                player.gain(gain_pile, to_pile=player.hand, mute=True)
                 break
 
             except:
@@ -958,7 +958,71 @@ def artisan_card(player):
     return True
 
 
+# Prosperity cards
+
+def loan_card(player):
+    player.coins += 1
+
+    while len(player.deck) + len(player.discard_pile) > 0:
+        revealed_card = player.reveal(from_pile=player.deck, return_cards=True)
+        if c.treasure in revealed_card.types:
+            if player.human:
+                if confirm_card("Trash " + revealed_card.colored_name() + " (y/n)?"):
+                    player.trash(from_pile=player.revealed_cards, card=revealed_card)
+            else:
+                if np.random.random() > 0.5:
+                    player.trash(from_pile=player.revealed_cards, card=revealed_card)
+            break
+
+    for card in player.revealed_cards:
+        player.discard(from_pile=player.revealed_cards, card=card)
+
+    return True
+
+
+def trade_route_card(player):
+    player.buys += 1
+
+    if player.human:
+        trash_card = None
+        while True:
+            if player.game.verbose:
+                player.print_hand()
+            trash_card_str = input("Select card to trash (card name):")
+            try:
+                trash_card = txf.get_card(input_str=trash_card_str, from_pile=player.hand)
+                if trash_card is None:
+                    print("Invalid input")
+                    continue
+
+                if not confirm_card(trash_card.colored_name() + " will be trashed (y/n):"):
+                    return False
+                break
+            except:
+                print("Invalid input")
+                continue
+        player.trash(from_pile=player.hand, card=trash_card)
+    else:
+        player.trash(from_pile=player.hand, card=np.random.choice(player.hand))
+
+    player.coins += len(player.game.trade_route_mat)
+
+    return True
+
+
+def watchtower_card(player):
+    while len(player.hand) < 6:
+        player.draw()
+
+    return True
+
+
 # card_text = {
+#     watchtower: "Draw until you have 6 cards in hand.\n" + hl + "\nWhen you gain a card, you may reveal this from your "
+#         "hand, to either trash that card or put it onto your deck.",
+#     bishop: txf.coins(1) + "\n" + txf.vt(1) + "\nTrash a card from your hand. " + txf.vt(1) + " per "
+#         + txf.coins(2, plain=True) + " it costs (round down). Each other player may trash a card from their hand.",
+#     monument: txf.coins(2) + "\n" + txf.vt(1),
 # }
 
 
@@ -983,7 +1047,7 @@ def gold_card(player):
     return True
 
 
-def platina_card(player):
+def platinum_card(player):
     player.coins += 5
 
     return True
