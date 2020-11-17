@@ -43,9 +43,9 @@ menagerie = "Menagerie"
 promo = "Promotional"
 
 # Card types
-action = "Action"   # Also reaction trigger
+action = "Action"
 reaction = "Reaction"
-attack = "Attack"
+attack = "Attack"   # Also reaction trigger
 treasure = "Treasure"
 victory = "Victory"
 curse = "Curse"     # Also name of a card

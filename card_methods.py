@@ -1017,12 +1017,94 @@ def watchtower_card(player):
     return True
 
 
+def bishop_card(player):
+    player.coins += 1
+    player.gain_vt(1)
+
+    trash_card = None
+    if player.human:
+        if player.game.verbose:
+            player.print_hand()
+        while True:
+            trash_card_str = input("Select card to trash (card name):")
+            try:
+                trash_card = txf.get_card(input_str=trash_card_str, from_pile=player.hand)
+                if trash_card is None:
+                    print("Invalid input")
+                    continue
+
+                if not confirm_card(trash_card.colored_name() + " will be trashed (y/n):"):
+                    return False
+                break
+            except:
+                print("Invalid input")
+                continue
+        player.trash(from_pile=player.hand, card=trash_card)
+    else:
+        trash_card = np.random.choice(player.hand)
+        player.trash(from_pile=player.hand, card=trash_card)
+
+    vt_gain = trash_card.get_cost(default=True) // 2
+    player.gain_vt(vt_gain)
+
+    players = [p for p in player.game.players if p is not player]
+    for p in players:
+        trash_card = None
+        if p.human:
+            if player.game.verbose:
+                p.print_hand()
+            while True:
+                trash_card_str = input(p.name + " may trash a card from their hand (card name, \"x\" for none):")
+                if trash_card_str == "x":
+                    if player.game.verbose:
+                        print("No cards trashed")
+                    break
+                try:
+                    trash_card = txf.get_card(input_str=trash_card_str, from_pile=p.hand)
+                    if trash_card is None:
+                        print("Invalid input")
+                        continue
+
+                    if not confirm_card(trash_card.colored_name() + " will be trashed (y/n):"):
+                        return False
+                    break
+                except:
+                    print("Invalid input")
+                    continue
+            if trash_card:
+                p.trash(from_pile=p.hand, card=trash_card)
+        else:
+            if np.random.random() > 0.5:
+                trash_card = np.random.choice(p.hand)
+                p.trash(from_pile=p.hand, card=trash_card)
+
+    return True
+
+
+def monument_card(player):
+    player.coins += 2
+    player.gain_vt(1)
+
+    return True
+
+
+def quarry_card(player):
+    player.coins += 1
+    player.effects.append(c.quarry)
+
+    return True
+
+
 # card_text = {
-#     watchtower: "Draw until you have 6 cards in hand.\n" + hl + "\nWhen you gain a card, you may reveal this from your "
-#         "hand, to either trash that card or put it onto your deck.",
-#     bishop: txf.coins(1) + "\n" + txf.vt(1) + "\nTrash a card from your hand. " + txf.vt(1) + " per "
-#         + txf.coins(2, plain=True) + " it costs (round down). Each other player may trash a card from their hand.",
-#     monument: txf.coins(2) + "\n" + txf.vt(1),
+# quarry: txf.coins(1, plain=True) + "\n" + hl + "\nWhile this is in play, Action cards cost "
+#         + txf.coins(2, plain=True) + " less, but not less than " + txf.coins(0, plain=True) + ".",
+#     talisman: txf.coins(1, plain=True) + "\n" + hl + "\nWhile this is in play, when you buy a non-Victory card costing "
+#         + txf.coins(4, plain=True) + " or less, gain a copy of it.",
+#     workers_village: txf.bold("+1 Card") + "\n" + txf.bold("+2 Actions") + "\n" + txf.bold("+1 Buy"),
+#     city: txf.bold("+1 Card") + "\n" + txf.bold("+2 Actions") + "\nIf there are one or more empty Supply piles, "
+#         + txf.bold("+1 Card") + ". If there are two or more, " + txf.bold("+1 Buy") + " and " + txf.coins(1),
+#     contraband: txf.coins(3, plain=True) + "\n" + txf.bold("+1 Buy") + "\nWhen you play this, the player to your left "
+#         "names a card. You can’t buy that card this turn.",
 # }
 
 

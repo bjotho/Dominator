@@ -24,6 +24,16 @@ VP = BOLD + BLACK + BRIGHT_GREEN_BG
 CURSE = BOLD + BLACK + BRIGHT_MAGENTA_BG
 
 placeholder_list = ["\0", "\1", "\2", "\3", "\4", "\5", "\6", "\7"]
+help_message = "List of commands:\n"\
+               "  b:\tInitiate buying phase\n"\
+               "  h:\tView hand\n"\
+               "  hh:\tPrint all cards in hand\n"\
+               "  v:\tView a card from the supply\n"\
+               "  vv:\tPrint all cards in the supply\n"\
+               "  a:\tToggle autoplay treasure cards\n"\
+               "  p:\tPlay additional treasure cards during buy phase\n"\
+               "  e:\tEnd turn\n"\
+               "  x:\tEnd game\n"
 
 
 def bold(text:str):

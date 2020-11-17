@@ -1,16 +1,18 @@
 import constants as c
 
 
-def grand_market_cost(player=None, printing=False):
+def grand_market_cost(player=None, printing=False, default=False):
     if printing:
         return "6*"
 
-    if player is None:
+    if player is None or default:
         return 6
 
     coppers_in_play = False
     for card in player.active_cards:
         if card.name == c.copper:
+            if player.game.verbose:
+                print("You can't buy this card since you have Copper cards in play.")
             coppers_in_play = True
 
     if not coppers_in_play:
@@ -19,11 +21,11 @@ def grand_market_cost(player=None, printing=False):
         return -1
 
 
-def peddler_cost(player=None, printing=False):
+def peddler_cost(player=None, printing=False, default=False):
     if printing:
         return "8*"
 
-    if player is None:
+    if player is None or default:
         return 8
 
     action_cards_in_play = 0
