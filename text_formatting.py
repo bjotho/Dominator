@@ -32,6 +32,7 @@ help_message = "List of commands:\n"\
                "  vv:\tPrint all cards in the supply\n"\
                "  a:\tToggle autoplay treasure cards\n"\
                "  p:\tPlay additional treasure cards during buy phase\n"\
+               "  fx:\tView all active effects\n"\
                "  e:\tEnd turn\n"\
                "  x:\tEnd game\n"
 
@@ -226,6 +227,21 @@ def visible_str_len(text):
         total_len += (len(group[0][1]) - len(group[0][0]))
 
     return total_len
+
+
+def get_pile(input_str, supply_piles):
+    pile_str = ""
+    out_pile = None
+    words = input_str.split()
+    for word in words:
+        pile_str += word[0].upper() + word[1:].lower() + " "
+    pile_str = pile_str[:-1]
+
+    for pile in supply_piles.values():
+        if pile_str == pile.name:
+            out_pile = pile
+
+    return out_pile
 
 
 def get_card(input_str, from_pile, return_index=False):

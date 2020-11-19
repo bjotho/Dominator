@@ -4,7 +4,7 @@ from card_methods import np, confirm_card
 
 def moat_reaction(player, self_card):
     player.reveal(player.hand, self_card, move=False)
-    player.effects.append(c.moat)
+    player.effects[c.moat] = c.effect_dict[c.moat]
 
     return True
 

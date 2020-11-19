@@ -159,7 +159,10 @@ def harbinger_card(player):
 def merchant_card(player):
     player.draw()
     player.actions += 1
-    player.effects.append(c.merchant)
+    if c.merchant in player.effects:
+        player.effects[c.merchant][c.number] += 1
+    else:
+        player.effects[c.merchant] = c.effect_dict[c.merchant].copy()
 
     return True
 
@@ -620,7 +623,6 @@ def bandit_card(player):
             v.draw(mute=True, to_pile=v.revealed_cards)
         v.reveal(v.revealed_cards, v.revealed_cards, move=False)
         eligible_cards = [card for card in v.revealed_cards if (c.treasure in card.types) and (card.name != c.copper)]
-        trash_card = None
         if len(eligible_cards) <= 0:
             continue
         elif len(eligible_cards) == 1:
@@ -1090,21 +1092,95 @@ def monument_card(player):
 
 def quarry_card(player):
     player.coins += 1
-    player.effects.append(c.quarry)
+    if c.quarry in player.effects:
+        player.effects[c.quarry][c.number] += 1
+    else:
+        player.effects[c.quarry] = c.effect_dict[c.quarry].copy()
+
+    return True
+
+
+def talisman_card(player):
+    player.coins += 1
+    if c.talisman in player.effects:
+        player.effects[c.talisman][c.number] += 1
+    else:
+        player.effects[c.talisman] = c.effect_dict[c.talisman].copy()
+
+    return True
+
+
+def workers_village_card(player):
+    player.draw()
+    player.actions += 2
+    player.buys += 1
+
+    return True
+
+
+def city_card(player):
+    player.draw()
+    player.actions += 2
+
+    empty_piles = len([pile for pile in player.game.supply.piles.values() if pile.number == 0])
+    if empty_piles >= 1:
+        player.draw()
+
+        if empty_piles >= 2:
+            player.buys += 1
+            player.coins += 1
+
+    return True
+
+
+def contraband_card(player):
+    player.coins += 3
+    player.buys += 1
+
+    blocked_pile = None
+    left_player = player.game.players[player.game.players.index(player) - 1]
+    if left_player.human:
+        while True:
+            blocked_pile_str = input(left_player.name + ", select pile to prevent " + player.name + " from buying "
+                                     "(pile name):")
+            try:
+                blocked_pile = txf.get_pile(input_str=blocked_pile_str, supply_piles=player.game.supply.piles)
+                assert blocked_pile is not None
+                break
+            except:
+                print("Invalid input")
+                continue
+    else:
+        blocked_pile = np.random.choice(list(player.game.supply.piles.values()))
+
+    if c.contraband in player.effects:
+        player.effects[c.contraband][c.number] += 1
+        if blocked_pile.name not in player.effects[c.contraband][c.contraband_cards]:
+            player.effects[c.contraband][c.contraband_cards].append(blocked_pile.name)
+        else:
+            if player.game.verbose:
+                print(blocked_pile.colored_name() + " pile is already blocked")
+    else:
+        player.effects[c.contraband] = c.effect_dict[c.contraband].copy()
+        player.effects[c.contraband][c.contraband_cards] = [blocked_pile.name]
+
+    if player.game.verbose:
+        print(left_player.name + " blocks the " + blocked_pile.colored_name() + " pile")
 
     return True
 
 
 # card_text = {
-# quarry: txf.coins(1, plain=True) + "\n" + hl + "\nWhile this is in play, Action cards cost "
-#         + txf.coins(2, plain=True) + " less, but not less than " + txf.coins(0, plain=True) + ".",
-#     talisman: txf.coins(1, plain=True) + "\n" + hl + "\nWhile this is in play, when you buy a non-Victory card costing "
-#         + txf.coins(4, plain=True) + " or less, gain a copy of it.",
-#     workers_village: txf.bold("+1 Card") + "\n" + txf.bold("+2 Actions") + "\n" + txf.bold("+1 Buy"),
-#     city: txf.bold("+1 Card") + "\n" + txf.bold("+2 Actions") + "\nIf there are one or more empty Supply piles, "
-#         + txf.bold("+1 Card") + ". If there are two or more, " + txf.bold("+1 Buy") + " and " + txf.coins(1),
-#     contraband: txf.coins(3, plain=True) + "\n" + txf.bold("+1 Buy") + "\nWhen you play this, the player to your left "
-#         "names a card. You can’t buy that card this turn.",
+# counting_house: " Look through your discard pile, reveal any number of Coppers from it, and put them into your "
+#         "hand.",
+#     mint: "You may reveal a Treasure card from your hand. Gain a copy of it.\n" + hl + "\nWhen you buy this, trash all "
+#         "Treasures you have in play.",
+#     mountebank: txf.coins(2) + "\nEach other player may discard a Curse. If they don’t, they gain a Curse and a "
+#         "Copper.",
+#     rabble: txf.bold("+3 Cards") + "\nEach other player reveals the top 3 cards of their deck, discards the revealed "
+#         "Actions and Treasures, and puts the rest back in any order they choose.",
+#     royal_seal: txf.coins(2, plain=True) + "\n" + hl + "\nWhile this is in play, when you gain a card, you may put "
+#         "that card onto your deck.",
 # }
 
 
@@ -1117,8 +1193,8 @@ def copper_card(player):
 def silver_card(player):
     player.coins += 2
     if c.merchant in player.effects:
-        player.coins += 1
-        player.effects.remove(c.merchant)
+        player.coins += player.effects[c.merchant][c.number]
+        del player.effects[c.merchant]
 
     return True
 

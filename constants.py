@@ -3,6 +3,7 @@ import text_formatting as txf
 
 hl = "_" * (txf.text_width - 4)
 
+# Dictionary keys
 name = "name"
 set = "set"
 types = "types"
@@ -11,7 +12,7 @@ text = "text"
 pile_size = "pile size"
 # actions = "actions"
 # villagers = "villagers"
-# cards = "cards"
+# draws = "draws"
 # buys = "buys"
 # coins = "coins"
 # coffers = "coffers"
@@ -20,6 +21,9 @@ pile_size = "pile size"
 # junk = "junk"
 # gain = "gain"
 # victory_points = "victory points"
+number = "number"
+description = "description"
+contraband_cards = "contraband cards"
 
 # Dominion set names
 base = "Base"
@@ -148,6 +152,17 @@ kings_court = "King\'s Court"
 peddler = "Peddler"
 platinum = "Platinum"
 colony = "Colony"
+
+# Dictionary for player effects
+effect_dict = {
+    moat: {number: 1, description: "You are unaffected by other players\' attacks this turn."},
+    merchant: {number: 1, description: "The first time you play a silver this turn, " + txf.coins(1) + "."},
+    quarry: {number: 1, description: "Action cards cost " + txf.coins(2, plain=True) + " less, but not less than " +
+        txf.coins(0, plain=True) + "."},
+    talisman: {number: 1, description: "When you buy a non-Victory card costing " + txf.coins(4, plain=True) + " or "
+        "less, gain a copy of it."},
+    contraband: {number: 1, description: "You are unable to buy from the following piles: ", contraband_cards: []}
+}
 
 starting_deck = {
     copper: 7,

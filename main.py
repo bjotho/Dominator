@@ -18,7 +18,7 @@ class Player:
         self.active_cards = []
         self.revealed_cards = []
         self.set_aside_cards = []
-        self.effects = []
+        self.effects = {}
         self.actions = 1
         self.buys = 1
         self.coins = 0
@@ -93,6 +93,9 @@ class Player:
                 elif card_str == "a":
                     self.toggle_autoplay_treasures()
                     continue
+                elif card_str == "fx":
+                    self.print_active_effects()
+                    continue
                 elif card_str == "h":
                     if not self.game.verbose:
                         self.print_hand()
@@ -133,14 +136,19 @@ class Player:
             print("---Buying phase---")
 
         play_treasure_output = self.play_treasure()
-        if play_treasure_output == "e":
+        if play_treasure_output == "x":
+            return
+        elif play_treasure_output == "e":
             return
 
         while self.buys > 0:
             if self.human:
                 view = False
                 if self.game.verbose:
-                    print("Coins: " + txf.coins(self.coins, plain=True) + "\tBuys: " + str(self.buys))
+                    coins_buys_str = "\nCoins: " + txf.coins(self.coins, plain=True) + "\tBuys: " + str(self.buys)
+                    if len(self.effects) > 0:
+                        coins_buys_str += "\t\tEffects: " + str(len(self.effects))
+                    print(coins_buys_str)
                     if len(self.active_cards) > 0:
                         self.print_active_cards()
                 print(self.game.supply)
@@ -160,6 +168,9 @@ class Player:
                     continue
                 elif card_str == "a":
                     self.toggle_autoplay_treasures()
+                    continue
+                elif card_str == "fx":
+                    self.print_active_effects()
                     continue
                 elif card_str == "h":
                     self.print_hand()
@@ -192,16 +203,25 @@ class Player:
                     print(Card(**c.card_list[pile.name]))
                     continue
                 if pile.number > 0:
-                    cost = pile.cards[-1].get_cost(self)
+                    if c.contraband in self.effects:
+                        if pile.name in self.effects[c.contraband][c.contraband_cards]:
+                            print("Pile blocked by Contraband")
+                            continue
+                    cost = pile.cards[-1].get_cost(player=self)
+                    if cost < 0:
+                        print("Card not purchasable")
+                        continue
                     if c.quarry in self.effects:
-                        if c.action in pile.cards[-1].types and cost >= 0:
-                            cost = max(0, cost - 2)
+                        if c.action in pile.cards[-1].types:
+                            cost = max(0, cost - (2 * self.effects[c.quarry][c.number]))
                     if self.coins >= cost >= 0:
                         if self.game.verbose:
                             print(self.name + " buys " + pile.colored_name())
                         self.gain(pile, mute=True)
                         self.coins -= cost
                         self.buys -= 1
+                        if c.talisman in self.effects:
+                            self.talisman_effect(pile, cost)
                     else:
                         print("You do not have enough coins")
                         continue
@@ -210,19 +230,29 @@ class Player:
                     continue
             else:
                 affordable_cards = [pile for pile in list(self.game.supply.piles.values())
-                                    if self.coins >= pile.get_cost(self) and pile.number > 0]
+                                    if self.coins >= pile.get_cost(player=self) >= 0 and pile.number > 0]
                 if c.quarry in self.effects:
                     additional_piles = [pile for pile in list(self.game.supply.piles.values())
-                                        if c.action in pile.type and pile not in affordable_cards]
+                                        if c.action in pile.types and pile not in affordable_cards]
                     for pile in additional_piles:
-                        if pile.number > 0 and pile.get_cost() > 0 and self.coins >= max(0, pile.get_cost() - 2):
-                            additional_piles.append(pile)
+                        if pile.number > 0 and pile.get_cost(player=self) >= 0 and self.coins >= max(0, pile.get_cost(player=self) - 2):
+                            affordable_cards.append(pile)
+                if c.contraband in self.effects:
+                    for blocked_pile in self.effects[c.contraband][c.contraband_cards]:
+                        for _pile in affordable_cards:
+                            if _pile.name == blocked_pile:
+                                affordable_cards.remove(_pile)
                 pile = self.game.supply.piles[np.random.choice(affordable_cards).name]
+                cost = pile.get_cost(player=self)
+                if c.quarry in self.effects and c.action in pile.types:
+                    cost = max(0, cost - (2 * self.effects[c.quarry][c.number]))
                 if self.game.verbose:
                     print(self.name + " buys " + pile.colored_name())
                 self.gain(pile, mute=True)
-                self.coins -= pile.get_cost(self)
+                self.coins -= pile.get_cost(player=self)
                 self.buys -= 1
+                if c.talisman in self.effects:
+                    self.talisman_effect(pile, cost)
 
     def play_treasure(self, manual=False):
         treasure_cards = [c.copper, c.silver, c.gold]
@@ -231,14 +261,16 @@ class Player:
         hand_treasures = [card for card in self.hand if c.treasure in card.types]
         if len(hand_treasures) == 0 and manual and self.game.verbose:
             print("You have no treasure cards in your hand to play!")
-        while (any(card.name not in treasure_cards for card in hand_treasures) or not self.autoplay_treasures
-                or manual) and len(hand_treasures) > 0:
+        while (any(card.name not in treasure_cards for card in hand_treasures) or manual)\
+                and not self.autoplay_treasures and len(hand_treasures) > 0:
             if self.human:
                 if self.game.verbose:
                     print("Deck: " + str(len(self.deck)) + ",\tDiscard Pile: " + str(len(self.discard_pile)))
                     self.print_hand()
-                    print("")
-                    print("Coins: " + txf.coins(self.coins, plain=True) + "\tBuys: " + str(self.buys))
+                    coins_buys_str = "\nCoins: " + txf.coins(self.coins, plain=True) + "\tBuys: " + str(self.buys)
+                    if len(self.effects) > 0:
+                        coins_buys_str += "\t\tEffects: " + str(len(self.effects))
+                    print(coins_buys_str)
                     if len(self.active_cards) > 0:
                         self.print_active_cards()
                 card_str = input("Select a treasure card to play (card name):")
@@ -248,12 +280,15 @@ class Player:
                 if card_str == "x":
                     if card_methods.confirm_card("Exit game (y/n)?"):
                         self.game.game_over = True
-                        return
+                        return "x"
                     continue
                 elif card_str == "e":
                     return "e"
                 elif card_str == "b":
                     break
+                elif card_str == "fx":
+                    self.print_active_effects()
+                    continue
                 elif card_str == "h":
                     continue
                 elif card_str == "hh":
@@ -290,8 +325,29 @@ class Player:
 
         if self.autoplay_treasures:
             for t_card in hand_treasures:
-                if t_card.name in treasure_cards:
-                    t_card.play(self, action=False)
+                if self.game.verbose and not self.human:
+                    print(self.name + " plays " + t_card.colored_name())
+                t_card.play(self, action=False)
+
+    def talisman_effect(self, pile, cost):
+        if pile.number > 0:
+            if c.victory not in pile.cards[-1].types and cost <= 4:
+                for _ in range(self.effects[c.talisman][c.number]):
+                    if pile.number > 0:
+                        if self.game.verbose:
+                            print(Card(**c.card_list[c.talisman]).colored_name() +
+                                  " grants " + self.name + " a copy of " + pile.colored_name())
+                        self.gain(pile, mute=True)
+                    else:
+                        if self.game.verbose:
+                            print(Card(**c.card_list[c.talisman]).colored_name() +
+                                  " would have granted you a copy of " + pile.colored_name() +
+                                  ", however the pile is empty.")
+        else:
+            if self.game.verbose:
+                print(Card(**c.card_list[c.talisman]).colored_name() +
+                      " would have granted you a copy of " + pile.colored_name() +
+                      ", however the pile is empty.")
 
     def shuffle_deck(self):
         for card in self.discard_pile:
@@ -345,6 +401,8 @@ class Player:
 
     def gain(self, pile, to_pile=None, mute=False):
         if pile.number <= 0:
+            if self.game.verbose:
+                print("The " + pile.colored_name() + " pile is empty!")
             return
 
         if to_pile is None:
@@ -456,6 +514,20 @@ class Player:
         return self.deck + self.hand + self.active_cards + self.revealed_cards + self.set_aside_cards\
                + self.discard_pile
 
+    def print_active_effects(self):
+        if len(self.effects) == 0:
+            print("You have no active effects.")
+            return
+        print("Effects:")
+        for effect in self.effects.items():
+            if effect[0] == c.contraband:
+                output = txf.bold(effect[0] + " x" + str(effect[1][c.number])) + ":\t" + effect[1][c.description]
+                for pile_name in effect[1][c.contraband_cards]:
+                    output += Card(**c.card_list[pile_name]).colored_name() + "\t"
+                print(output)
+            else:
+                print(txf.bold(effect[0] + " x" + str(effect[1][c.number])) + ":\t" + effect[1][c.description])
+
     def print_hand(self):
         print(self.name + "\'s hand:")
         if self.game.verbose >= 2:
@@ -501,9 +573,7 @@ class Player:
 
 
 class Card:
-    def __init__(self, name, set, types:list, cost, text, actions=None, villagers=None, cards=None,
-                 buys=None, coins=None, coffers=None, trash=None, exile=None, junk=None, gain=None,
-                 victory_points=None, **kwargs):
+    def __init__(self, name, set, types:list, cost, text, **kwargs):
         self.name = name
         self.set = set
         self.types = types
@@ -557,7 +627,7 @@ class Card:
 
         if discard:
             player.move(from_pile=player.hand, to_pile=player.active_cards, card=self)
-        success = eval("card_methods." + self.name.lower().replace(" ", "_") + "_card(player)")
+        success = eval("card_methods." + self.name.lower().replace(" ", "_").replace("\'", "") + "_card(player)")
         for p in player.game.players:
             p.effects = tmp_player_effects[p.name]
         if not success:
@@ -823,6 +893,13 @@ class Game:
             print("\nTurn " + str(self.turn + 1) + "\n")
         player = self.players[self.turn % len(self.players)]
         player.play()
+        # print("player.effects: {")
+        # for effect, attributes in player.effects.items():
+        #     print("  " + str(effect) + ": {")
+        #     for a in list(attributes.items()):
+        #         print("    " + str(a[0]) + ":", a[1])
+        #     print("  }")
+        # print("}")
         player.cleanup()
         if not self.game_over:
             self.game_over = self.end_conditions()
@@ -892,7 +969,7 @@ class Game:
 
 
 num_players = 2
-supply_cards = [c.loan, c.trade_route, c.watchtower, c.bishop, c.monument, c.quarry]
+supply_cards = [c.quarry, c.talisman, c.workers_village, c.city, c.merchant, c.moat, c.contraband]
 active_sets = [c.base]
 
 game = Game(players=num_players, supply=supply_cards, sets=active_sets, platinum=True, colonies=True, verbose=1)
