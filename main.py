@@ -50,9 +50,9 @@ class Player:
         if self.game.verbose:
             message = "Autoplay treasures is currently turned "
             if self.autoplay_treasures:
-                message += "ON, turn \"OFF\" (y/n)?"
+                message += "ON, turn OFF? (y/n):"
             else:
-                message += "OFF, turn \"ON\" (y/n)?"
+                message += "OFF, turn ON? (y/n):"
             if not card_methods.confirm_card(message, mute_n=True):
                 return
 
@@ -147,6 +147,7 @@ class Player:
                 if self.game.verbose:
                     coins_buys_str = "\nCoins: " + txf.coins(self.coins, plain=True) + "\tBuys: " + str(self.buys)
                     if len(self.effects) > 0:
+                        self.update_active_effects()
                         coins_buys_str += "\t\tEffects: " + str(len(self.effects))
                     print(coins_buys_str)
                     if len(self.active_cards) > 0:
@@ -163,9 +164,9 @@ class Player:
                     continue
                 if card_str == "e":
                     return
-                elif card_str == "p":
-                    self.play_treasure(manual=True)
-                    continue
+                # elif card_str == "p":
+                #     self.play_treasure(manual=True)
+                #     continue
                 elif card_str == "a":
                     self.toggle_autoplay_treasures()
                     continue
@@ -211,16 +212,22 @@ class Player:
                     if cost < 0:
                         print("Card not purchasable")
                         continue
-                    if c.quarry in self.effects:
+                    active_card_names = [card.name for card in self.active_cards]
+                    if c.quarry in active_card_names:
                         if c.action in pile.cards[-1].types:
-                            cost = max(0, cost - (2 * self.effects[c.quarry][c.number]))
+                            cost = max(0, cost - (2 * active_card_names.count(c.quarry)))
                     if self.coins >= cost >= 0:
+                        if pile.name == c.mint:
+                            if not card_methods.confirm_card("Trash all active treasure cards (y/n)?"):
+                                continue
+                            for active_t_card in [card for card in self.active_cards if c.treasure in card.types]:
+                                self.trash(from_pile=self.active_cards, card=active_t_card)
                         if self.game.verbose:
                             print(self.name + " buys " + pile.colored_name())
                         self.gain(pile, mute=True)
                         self.coins -= cost
                         self.buys -= 1
-                        if c.talisman in self.effects:
+                        if c.talisman in active_card_names:
                             self.talisman_effect(pile, cost)
                     else:
                         print("You do not have enough coins")
@@ -231,11 +238,13 @@ class Player:
             else:
                 affordable_cards = [pile for pile in list(self.game.supply.piles.values())
                                     if self.coins >= pile.get_cost(player=self) >= 0 and pile.number > 0]
-                if c.quarry in self.effects:
+                active_card_names = [card.name for card in self.active_cards]
+                if c.quarry in active_card_names:
                     additional_piles = [pile for pile in list(self.game.supply.piles.values())
                                         if c.action in pile.types and pile not in affordable_cards]
                     for pile in additional_piles:
-                        if pile.number > 0 and pile.get_cost(player=self) >= 0 and self.coins >= max(0, pile.get_cost(player=self) - 2):
+                        if pile.number > 0 and pile.get_cost(player=self) >= 0\
+                           and self.coins >= max(0, pile.get_cost(self) - (2 * active_card_names.count(c.quarry))):
                             affordable_cards.append(pile)
                 if c.contraband in self.effects:
                     for blocked_pile in self.effects[c.contraband][c.contraband_cards]:
@@ -246,12 +255,15 @@ class Player:
                 cost = pile.get_cost(player=self)
                 if c.quarry in self.effects and c.action in pile.types:
                     cost = max(0, cost - (2 * self.effects[c.quarry][c.number]))
+                if pile.name == c.mint:
+                    for active_t_card in [card for card in self.active_cards if c.treasure in card.types]:
+                        self.trash(from_pile=self.active_cards, card=active_t_card)
                 if self.game.verbose:
                     print(self.name + " buys " + pile.colored_name())
                 self.gain(pile, mute=True)
                 self.coins -= pile.get_cost(player=self)
                 self.buys -= 1
-                if c.talisman in self.effects:
+                if c.talisman in active_card_names:
                     self.talisman_effect(pile, cost)
 
     def play_treasure(self, manual=False):
@@ -261,14 +273,14 @@ class Player:
         hand_treasures = [card for card in self.hand if c.treasure in card.types]
         if len(hand_treasures) == 0 and manual and self.game.verbose:
             print("You have no treasure cards in your hand to play!")
-        while (any(card.name not in treasure_cards for card in hand_treasures) or manual)\
-                and not self.autoplay_treasures and len(hand_treasures) > 0:
+        while (len(hand_treasures) > 0 and not self.autoplay_treasures) or manual:
             if self.human:
                 if self.game.verbose:
                     print("Deck: " + str(len(self.deck)) + ",\tDiscard Pile: " + str(len(self.discard_pile)))
                     self.print_hand()
                     coins_buys_str = "\nCoins: " + txf.coins(self.coins, plain=True) + "\tBuys: " + str(self.buys)
                     if len(self.effects) > 0:
+                        self.update_active_effects()
                         coins_buys_str += "\t\tEffects: " + str(len(self.effects))
                     print(coins_buys_str)
                     if len(self.active_cards) > 0:
@@ -308,31 +320,52 @@ class Player:
                     print("Invalid input, please try again.")
                     continue
 
-                if self.game.verbose:
-                    if not card_methods.confirm_card("Play " + treasure_card.colored_name() + " (y/n)?"):
-                        continue
+                num = 0
+                for card in hand_treasures:
+                    if card.name == treasure_card.name:
+                        num += 1
 
-                treasure_card.play(self, action=False)
-                hand_treasures.remove(treasure_card)
+                if num > 1:
+                    if not card_methods.confirm_card("Play all " + treasure_card.colored_name() + " in hand (y/n)?",
+                                                     mute_n=True):
+                        if self.game.verbose:
+                            print(self.name + " plays " + treasure_card.colored_name())
+                        treasure_card.play(self, action=False)
+                        hand_treasures.remove(treasure_card)
+                        continue
+                    for card in hand_treasures.copy():
+                        if card.name == treasure_card.name:
+                            if self.game.verbose:
+                                print(self.name + " plays " + card.colored_name())
+                            card.play(self, action=False)
+                            hand_treasures.remove(card)
+
+                else:
+                    if self.game.verbose:
+                        if not card_methods.confirm_card("Play " + treasure_card.colored_name() + " (y/n)?"):
+                            continue
+
+                    treasure_card.play(self, action=False)
+                    hand_treasures.remove(treasure_card)
 
             else:
-                playable_hand_treasures = [card for card in hand_treasures if card not in treasure_cards]
-                card = np.random.choice(playable_hand_treasures)
+                # playable_hand_treasures = [card for card in hand_treasures if card not in treasure_cards]
+                card = np.random.choice(hand_treasures)
                 if self.game.verbose:
                     print(self.name + " plays " + card.colored_name())
                 card.play(self, action=False)
                 hand_treasures.remove(card)
 
         if self.autoplay_treasures:
-            for t_card in hand_treasures:
-                if self.game.verbose and not self.human:
-                    print(self.name + " plays " + t_card.colored_name())
-                t_card.play(self, action=False)
+            for card in hand_treasures:
+                if self.game.verbose:
+                    print(self.name + " plays " + card.colored_name())
+                card.play(self, action=False)
 
     def talisman_effect(self, pile, cost):
         if pile.number > 0:
             if c.victory not in pile.cards[-1].types and cost <= 4:
-                for _ in range(self.effects[c.talisman][c.number]):
+                for _ in range([card.name for card in self.active_cards].count(c.talisman)):
                     if pile.number > 0:
                         if self.game.verbose:
                             print(Card(**c.card_list[c.talisman]).colored_name() +
@@ -342,12 +375,11 @@ class Player:
                         if self.game.verbose:
                             print(Card(**c.card_list[c.talisman]).colored_name() +
                                   " would have granted you a copy of " + pile.colored_name() +
-                                  ", however the pile is empty.")
+                                  "; however, the pile is empty.")
         else:
             if self.game.verbose:
                 print(Card(**c.card_list[c.talisman]).colored_name() +
-                      " would have granted you a copy of " + pile.colored_name() +
-                      ", however the pile is empty.")
+                      " would have granted you a copy of " + pile.colored_name() + ", however the pile is empty.")
 
     def shuffle_deck(self):
         for card in self.discard_pile:
@@ -378,7 +410,7 @@ class Player:
     def draw(self, mute=False, named=True, return_card=False, to_pile=None):
         if len(self.deck) <= 0:
             if len(self.discard_pile) <= 0:
-                if self.game.verbose >= 2:
+                if self.game.verbose >= 1:
                     print("There are no cards to draw")
                 return
             else:
@@ -405,6 +437,14 @@ class Player:
                 print("The " + pile.colored_name() + " pile is empty!")
             return
 
+        if c.royal_seal in [card.name for card in self.active_cards] and to_pile is not self.deck:
+            if self.human:
+                if card_methods.confirm_card("Place " + pile.colored_name() + " on top of deck (y/n)?", mute_n=True):
+                    to_pile = self.deck
+            else:
+                if np.random.random() > 0.5:
+                    to_pile = self.deck
+
         if to_pile is None:
             to_pile = self.discard_pile
 
@@ -413,6 +453,11 @@ class Player:
         gain_card = pile.cards[-1]
         to_pile.append(gain_card)
         pile.remove()
+
+        if to_pile is self.deck:
+            if self.game.verbose:
+                print(self.name + " places " + pile.colored_name() + " on top of their deck")
+
         for card in self.hand:
             if c.reaction in card.types:
                 if c.reaction_triggers[card.name] == c.gain:
@@ -449,9 +494,11 @@ class Player:
             if self.game.verbose:
                 print(card.colored_name() + " is not in expected location and was not trashed")
 
-    def discard(self, from_pile, card):
+    def discard(self, from_pile, card, mute=True):
         try:
             assert card in from_pile
+            if self.game.verbose and not mute:
+                print(self.name + " discards " + card.colored_name())
             self.discard_pile.append(card)
             from_pile.remove(card)
         except:
@@ -476,10 +523,11 @@ class Player:
             if self.game.verbose:
                 print(card.colored_name() + " is not in expected location and was not moved")
 
-    def reveal(self, from_pile, cards=None, move=True, return_cards=False):
+    def reveal(self, from_pile, cards=None, num=1, move=True, return_cards=False):
         if from_pile == self.deck:
-            cards = self.draw(to_pile=self.revealed_cards, mute=True, return_card=True)
-            move = False
+            cards = []
+            for _ in range(num):
+                cards.append(self.draw(to_pile=self.revealed_cards, mute=True, return_card=True))
 
         if cards:
             if self.game.verbose:
@@ -513,6 +561,15 @@ class Player:
     def all_cards(self):
         return self.deck + self.hand + self.active_cards + self.revealed_cards + self.set_aside_cards\
                + self.discard_pile
+
+    def update_active_effects(self):
+        active_card_names = [card.name for card in self.active_cards]
+        for effect in list(self.effects.items()):
+            if c.req_active in effect[1].keys():
+                if effect[1][c.req_active]:
+                    effect[1][c.number] = active_card_names.count(effect[0])
+                    if effect[1][c.number] == 0:
+                        del self.effects[effect[0]]
 
     def print_active_effects(self):
         if len(self.effects) == 0:
@@ -969,7 +1026,7 @@ class Game:
 
 
 num_players = 2
-supply_cards = [c.quarry, c.talisman, c.workers_village, c.city, c.merchant, c.moat, c.contraband]
+supply_cards = [c.counting_house, c.mint, c.rabble, c.royal_seal, c.vault]
 active_sets = [c.base]
 
 game = Game(players=num_players, supply=supply_cards, sets=active_sets, platinum=True, colonies=True, verbose=1)

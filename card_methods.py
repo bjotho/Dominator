@@ -19,8 +19,9 @@ def confirm_card(confirmation_str, mute_n=False):
 # Base game cards
 
 def cellar_card(player):
+    player.actions += 1
+
     if len(player.hand) == 0:
-        player.actions += 1
         return True
 
     discard_list = []
@@ -50,12 +51,10 @@ def cellar_card(player):
                 discard_list.append(card)
 
     for card in discard_list:
-        player.discard(player.hand, card)
+        player.discard(player.hand, card, mute=False)
 
     for _ in range(len(discard_list)):
         player.draw()
-
-    player.actions += 1
 
     return True
 
@@ -235,10 +234,10 @@ def bureaucrat_card(player):
     victims = [p for p in player.game.players if (c.moat not in p.effects) and (p is not player)]
     for v in victims:
         victory_cards = [card for card in v.hand if c.victory in card.types]
-        if len(victory_cards) <= 0:
+        if len(victory_cards) == 0:
             v.reveal_hand()
         elif len(victory_cards) == 1:
-            v.reveal(v.hand, victory_cards[0])
+            v.reveal(from_pile=v.hand, cards=victory_cards[0])
             v.move(from_pile=v.revealed_cards, to_pile=v.deck, card=victory_cards[0])
             if player.game.verbose:
                 print("... And puts it on top of their deck")
@@ -259,7 +258,7 @@ def bureaucrat_card(player):
                         if reveal_card is None:
                             print("Invalid input")
                             continue
-                        v.reveal(v.hand, reveal_card)
+                        v.reveal(from_pile=v.hand, cards=reveal_card)
                         v.move(from_pile=v.revealed_cards, to_pile=v.deck, card=reveal_card)
                         if player.game.verbose:
                             print("... And puts it on top of their deck")
@@ -269,7 +268,7 @@ def bureaucrat_card(player):
                         continue
             else:
                 reveal_card = np.random.choice(victory_cards)
-                v.reveal(v.hand, reveal_card)
+                v.reveal(from_pile=v.hand, cards=reveal_card)
                 v.move(from_pile=v.revealed_cards, to_pile=v.deck, card=reveal_card)
                 if player.game.verbose:
                     print("... And puts it on top of their deck")
@@ -375,7 +374,7 @@ def moneylender_card(player):
     else:
         if player.human:
             player.print_hand()
-            if not confirm_card("Trash " + copper_card.name + " (y/n)?"):
+            if not confirm_card("Trash " + copper_card.colored_name() + " (y/n)?"):
                 return True
 
     player.trash(player.hand, copper_card)
@@ -495,7 +494,7 @@ def spy_card(player):
     players = [p for p in player.game.players if c.moat not in p.effects]
     for p in players:
         _reveal_card = p.draw(mute=True, return_card=True, to_pile=p.revealed_cards)
-        p.reveal(p.revealed_cards, _reveal_card, move=False)
+        p.reveal(from_pile=p.revealed_cards, cards=_reveal_card, move=False)
         if player.human:
             if confirm_card("Put back on deck (y) or discard (n)?:", mute_n=True):
                 if player.game.verbose:
@@ -523,7 +522,7 @@ def thief_card(player):
     for v in victims:
         for _ in range(2):
             v.draw(mute=True, to_pile=v.revealed_cards)
-        v.reveal(v.revealed_cards, v.revealed_cards, move=False)
+        v.reveal(from_pile=v.revealed_cards, cards=v.revealed_cards, move=False)
         eligible_cards = [card for card in v.revealed_cards if c.treasure in card.types]
         trash_card = None
         if len(eligible_cards) <= 0:
@@ -532,7 +531,7 @@ def thief_card(player):
             trash_card = eligible_cards[0]
             v.trash(v.revealed_cards, trash_card)
         else:
-            if v.human:
+            if player.human:
                 while True:
                     trash_card_str = input("Select card to trash (card name):")
                     try:
@@ -621,7 +620,7 @@ def bandit_card(player):
     for v in victims:
         for _ in range(2):
             v.draw(mute=True, to_pile=v.revealed_cards)
-        v.reveal(v.revealed_cards, v.revealed_cards, move=False)
+        v.reveal(from_pile=v.revealed_cards, cards=v.revealed_cards, move=False)
         eligible_cards = [card for card in v.revealed_cards if (c.treasure in card.types) and (card.name != c.copper)]
         if len(eligible_cards) <= 0:
             continue
@@ -900,7 +899,7 @@ def witch_card(player):
 def adventurer_card(player):
     revealed_treasure_cards = []
     while len(revealed_treasure_cards) < 2 and (len(player.deck) + len(player.discard_pile)) > 0:
-        _card = player.reveal(player.deck, return_cards=True)
+        _card = player.reveal(from_pile=player.deck, return_cards=True)[0]
         if c.treasure in _card.types:
             revealed_treasure_cards.append(_card)
             player.move(from_pile=player.revealed_cards, to_pile=player.hand, card=_card)
@@ -966,7 +965,7 @@ def loan_card(player):
     player.coins += 1
 
     while len(player.deck) + len(player.discard_pile) > 0:
-        revealed_card = player.reveal(from_pile=player.deck, return_cards=True)
+        revealed_card = player.reveal(from_pile=player.deck, return_cards=True)[0]
         if c.treasure in revealed_card.types:
             if player.human:
                 if confirm_card("Trash " + revealed_card.colored_name() + " (y/n)?"):
@@ -1170,17 +1169,271 @@ def contraband_card(player):
     return True
 
 
+def counting_house_card(player):
+    discarded_coppers = [card for card in player.discard_pile if card.name == c.copper]
+    num = 0
+    if player.human:
+        if len(discarded_coppers) == 0:
+            if player.game.verbose:
+                print("You have no coppers in your discard pile")
+            return True
+        else:
+            if player.game.verbose:
+                print("Your discard pile contains " + txf.bold(str(len(discarded_coppers)) + "x ") +
+                      discarded_coppers[0].colored_name())
+            while True:
+                num_str = input("How many coppers will you reveal and put into your hand (0-" + str(len(discarded_coppers)) + ")?")
+                try:
+                    num = int(num_str)
+                    assert len(discarded_coppers) >= num >= 0
+                    break
+                except:
+                    print("Invalid input")
+                    continue
+    else:
+        num = np.random.randint(0, len(discarded_coppers) + 1)
+
+    player.reveal(from_pile=player.discard_pile, cards=discarded_coppers[:num])
+    for card in discarded_coppers[:num]:
+        player.move(from_pile=player.revealed_cards, to_pile=player.hand, card=card)
+
+    if player.game.verbose:
+        if len(discarded_coppers) == 1:
+            print("... And puts it into the hand")
+        else:
+            print("... And puts them into the hand")
+
+    return True
+
+
+def mint_card(player):
+    hand_treasures = [card for card in player.hand if c.treasure in card.types]
+    copy_card = None
+    if len(hand_treasures) == 0:
+        if player.game.verbose:
+            print("You have no treasures in your hand")
+        return True
+    elif len(hand_treasures) == 1:
+        if player.human:
+            if confirm_card("Reveal and copy " + hand_treasures[0].colored_name() + " (y/n)?"):
+                copy_card = hand_treasures[0]
+            else:
+                return False
+        else:
+            if np.random.random() > 0.5:
+                copy_card = hand_treasures[0]
+    else:
+        if player.human:
+            while True:
+                copy_card_str = input("Select treasure card to reveal and copy (card name, \"x\" for none):")
+                if copy_card_str == "x":
+                    return True
+                try:
+                    copy_card = txf.get_card(copy_card_str, hand_treasures)
+                    if copy_card is None:
+                        print("Invalid input")
+                        continue
+                    break
+                except:
+                    print("Invalid input")
+                    continue
+        else:
+            if np.random.random() > 0.5:
+                copy_card = np.random.choice(hand_treasures)
+
+    if copy_card:
+        player.reveal(from_pile=player.hand, cards=copy_card, move=False)
+        copy_pile = txf.get_pile(input_str=copy_card.name, supply_piles=player.game.supply.piles)
+        player.gain(pile=copy_pile)
+
+    return True
+
+
+def mountebank_card(player):
+    player.coins += 2
+
+    curse_pile = player.game.supply.piles[c.curse]
+    copper_pile = player.game.supply.piles[c.copper]
+    victims = [p for p in player.game.players if (c.moat not in p.effects) and (p is not player)]
+    for v in victims:
+        curse_cards = [card for card in v.hand if c.curse in card.types]
+        if len(curse_cards) == 0:
+            v.gain(curse_pile)
+            v.gain(copper_pile)
+        else:
+            if v.human:
+                if player.game.verbose:
+                    v.print_hand()
+                if confirm_card("Discard a curse card (y/n)?"):
+                    v.discard(from_pile=v.hand, card=curse_cards[0])
+                    if player.game.verbose:
+                        print(v.name + " discards " + curse_cards[0].colored_name())
+                else:
+                    v.gain(curse_pile)
+                    v.gain(copper_pile)
+            else:
+                if np.random.random() > 0.5:
+                    v.discard(from_pile=v.hand, card=curse_cards[0])
+                    if player.game.verbose:
+                        print(v.name + " discards " + curse_cards[0].colored_name())
+                else:
+                    v.gain(curse_pile)
+                    v.gain(copper_pile)
+
+    return True
+
+
+def rabble_card(player):
+    for _ in range(3):
+        player.draw()
+
+    victims = [p for p in player.game.players if (c.moat not in p.effects) and (p is not player)]
+    for v in victims:
+        _revealed_cards = v.reveal(from_pile=v.deck, num=3, return_cards=True)
+        for card in v.revealed_cards.copy():
+            if c.action in card.types or c.treasure in card.types:
+                if player.game.verbose:
+                    print(v.name + " discards " + card.colored_name())
+                v.discard(from_pile=v.revealed_cards, card=card)
+                _revealed_cards.remove(card)
+
+        if len(_revealed_cards) == 1:
+            if player.game.verbose:
+                print(v.name + " puts " + _revealed_cards[0].colored_name() + " on top of their deck")
+            v.move(from_pile=v.revealed_cards, to_pile=v.deck, card=_revealed_cards[0])
+        elif len(_revealed_cards) > 1:
+            if v.human:
+                if player.game.verbose:
+                    print("Cards:")
+                    for card in _revealed_cards:
+                        print("  " + card.colored_name())
+                while True:
+                    order_str = input("Select the order the revealed cards should appear on top of the deck "
+                                      "(card names, separate with comma):")
+                    try:
+                        order_list = txf.get_cards(order_str, v.revealed_cards)
+                        if order_list is None:
+                            print("Invalid input")
+                            order_list = []
+                            continue
+                        elif len(order_list) < len(_revealed_cards):
+                            print("Please include all cards")
+                            order_list = []
+                            continue
+                        break
+                    except:
+                        print("Invalid input")
+                        order_list = []
+                        continue
+
+            else:
+                order_list = v.revealed_cards
+                np.random.shuffle(order_list)
+
+            for card in order_list[::-1]:
+                if player.game.verbose:
+                    print(v.name + " places " + card.colored_name() + " back onto the deck")
+                v.move(from_pile=v.revealed_cards, to_pile=v.deck, card=card)
+
+    return True
+
+
+def royal_seal_card(player):
+    player.coins += 2
+    player.effects[c.royal_seal] = c.effect_dict[c.royal_seal].copy()
+
+    return True
+
+
+def vault_card(player):
+    for _ in range(2):
+        player.draw()
+
+    discard_list = []
+    if player.human:
+        while True:
+            if player.game.verbose:
+                player.print_hand()
+            discard_cards_str = input("Select cards to discard (card names, separate with comma, \"x\" for none):")
+            if discard_cards_str == "x":
+                break
+            try:
+                discard_list = txf.get_cards(discard_cards_str, player.hand)
+                if discard_list is None:
+                    print("Invalid input")
+                    discard_list = []
+                    continue
+                for card in discard_list:
+                    print(card.colored_name())
+                if not confirm_card("The listed cards will be discarded (y/n):"):
+                    return False
+                break
+            except:
+                print("Invalid input")
+                discard_list = []
+                continue
+    else:
+        for card in player.hand:
+            if np.random.random() > 0.5:
+                discard_list.append(card)
+
+    for card in discard_list:
+        player.discard(player.hand, card, mute=False)
+
+    player.coins += len(discard_list)
+
+    for p in [_p for _p in player.game.players if _p is not player]:
+        discard_list = []
+        if p.human:
+            if player.game.verbose:
+                p.print_hand()
+            while True:
+                discard_cards_str = input("You may discard two cards to draw a new card (card names, separate with "
+                                          "comma, \"x\" for none):")
+                if discard_cards_str == "x":
+                    break
+                try:
+                    discard_list = txf.get_cards(discard_cards_str, p.hand)
+                    if discard_list is None:
+                        print("Invalid input")
+                        discard_list = []
+                        continue
+                    if len(discard_list) != 2:
+                        print("You have to select two cards to discard")
+                        discard_list = []
+                        continue
+                    for card in discard_list:
+                        print(card.colored_name())
+                    if not confirm_card("The listed cards will be discarded (y/n):"):
+                        continue
+                    break
+                except:
+                    print("Invalid input")
+                    discard_list = []
+                    continue
+        else:
+            if np.random.random() > 0.5:
+                while len(discard_list) < 2:
+                    discard_list.append(np.random.choice(p.hand))
+
+        if len(discard_list) == 2:
+            for card in discard_list:
+                p.discard(from_pile=p.hand, card=card, mute=False)
+            p.draw()
+
+    return True
+
+
 # card_text = {
-# counting_house: " Look through your discard pile, reveal any number of Coppers from it, and put them into your "
-#         "hand.",
-#     mint: "You may reveal a Treasure card from your hand. Gain a copy of it.\n" + hl + "\nWhen you buy this, trash all "
-#         "Treasures you have in play.",
-#     mountebank: txf.coins(2) + "\nEach other player may discard a Curse. If they don’t, they gain a Curse and a "
-#         "Copper.",
-#     rabble: txf.bold("+3 Cards") + "\nEach other player reveals the top 3 cards of their deck, discards the revealed "
-#         "Actions and Treasures, and puts the rest back in any order they choose.",
-#     royal_seal: txf.coins(2, plain=True) + "\n" + hl + "\nWhile this is in play, when you gain a card, you may put "
-#         "that card onto your deck.",
+# vault: txf.bold("+2 Cards") + "\nDiscard any number of cards for " + txf.coins(1) + " each. Each other player may "
+#     "discard 2 cards, to draw a card.",
+# venture: txf.coins(1, plain=True) + "\nWhen you play this, reveal cards from your deck until you reveal a "
+#     "Treasure. Discard the other cards. Play that Treasure.",
+# goons: txf.bold("+1 Buy") + "\n" + txf.coins(2) + "\nEach other player discards down to 3 cards in hand.\n" + hl
+#     + "\nWhile this is in play, when you buy a card, " + txf.vt(1) + ".",
+# grand_market: txf.bold("+1 Card") + "\n" + txf.bold("+1 Action") + "\n" + txf.bold("+1 Buy") + "\n" + txf.coins(2)
+#     + ".\n" + hl + "\nYou can’t buy this if you have any Coppers in play.",
+# hoard: txf.coins(2, plain=True) + "\n" + hl + "\nWhile this is in play, when you buy a Victory card, gain a Gold.",
 # }
 
 

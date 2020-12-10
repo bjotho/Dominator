@@ -31,10 +31,10 @@ help_message = "List of commands:\n"\
                "  v:\tView a card from the supply\n"\
                "  vv:\tPrint all cards in the supply\n"\
                "  a:\tToggle autoplay treasure cards\n"\
-               "  p:\tPlay additional treasure cards during buy phase\n"\
                "  fx:\tView all active effects\n"\
                "  e:\tEnd turn\n"\
                "  x:\tEnd game\n"
+# "  p:\tPlay additional treasure cards during buy phase\n"\
 
 
 def bold(text:str):

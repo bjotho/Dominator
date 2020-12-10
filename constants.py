@@ -21,6 +21,7 @@ pile_size = "pile size"
 # junk = "junk"
 # gain = "gain"
 # victory_points = "victory points"
+req_active = "Require active"
 number = "number"
 description = "description"
 contraband_cards = "contraband cards"
@@ -155,13 +156,17 @@ colony = "Colony"
 
 # Dictionary for player effects
 effect_dict = {
-    moat: {number: 1, description: "You are unaffected by other players\' attacks this turn."},
-    merchant: {number: 1, description: "The first time you play a silver this turn, " + txf.coins(1) + "."},
-    quarry: {number: 1, description: "Action cards cost " + txf.coins(2, plain=True) + " less, but not less than " +
-        txf.coins(0, plain=True) + "."},
-    talisman: {number: 1, description: "When you buy a non-Victory card costing " + txf.coins(4, plain=True) + " or "
-        "less, gain a copy of it."},
-    contraband: {number: 1, description: "You are unable to buy from the following piles: ", contraband_cards: []}
+    moat: {number: 1, req_active: False, description: "You are unaffected by other players\' attacks this turn."},
+    merchant: {number: 1, req_active: False, description: "The first time you play a silver this turn, " + txf.coins(1)
+               + "."},
+    quarry: {number: 1, req_active: True, description: "Action cards cost " + txf.coins(2, plain=True) + " less, but "
+             "not less than " + txf.coins(0, plain=True) + "."},
+    talisman: {number: 1, req_active: True, description: "When you buy a non-Victory card costing " +
+               txf.coins(4, plain=True) + " or less, gain a copy of it."},
+    contraband: {number: 1, req_active: False, description: "You are unable to buy from the following piles: ",
+                 contraband_cards: []},
+    royal_seal: {number: 1, req_active: True, description: "While this is in play, when you gain a card, you may put "
+                 "that card onto your deck."}
 }
 
 starting_deck = {
