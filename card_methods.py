@@ -595,7 +595,9 @@ def throne_room_card(player):
                         continue
 
                     for _ in range(2):
-                        throned_card.play(player, action=False)
+                        if player.game.verbose:
+                            print(player.name + " plays " + throned_card.colored_name())
+                        throned_card.play(player, action=False, mute=True)
 
                     break
                 except:
@@ -605,7 +607,9 @@ def throne_room_card(player):
             eligible_cards = [card for card in player.hand if c.action in card.types]
             throned_card = np.random.choice(eligible_cards)
             for _ in range(2):
-                throned_card.play(player, action=False)
+                if player.game.verbose:
+                    print(player.name + " plays " + throned_card.colored_name())
+                throned_card.play(player, action=False, mute=True)
 
     return True
 
@@ -1676,7 +1680,9 @@ def kings_court_card(player):
                         continue
 
                     for _ in range(3):
-                        kings_courted_card.play(player, action=False)
+                        if player.game.verbose:
+                            print(player.name + " plays " + kings_courted_card.colored_name())
+                        kings_courted_card.play(player, action=False, mute=True)
 
                     break
                 except:
@@ -1686,7 +1692,9 @@ def kings_court_card(player):
             eligible_cards = [card for card in player.hand if c.action in card.types]
             kings_courted_card = np.random.choice(eligible_cards)
             for _ in range(3):
-                kings_courted_card.play(player, action=False)
+                if player.game.verbose:
+                    print(player.name + " plays " + kings_courted_card.colored_name())
+                kings_courted_card.play(player, action=False, mute=True)
 
     return True
 

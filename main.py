@@ -106,6 +106,13 @@ class Player:
                     self.print_hand()
                     self.game.verbose = v_tmp
                     continue
+                elif card_str == "v":
+                    card_str = input("Select card to view (card name):")
+                    piles = [Card(**c.card_list[pile.name]) for pile in list(self.game.supply.piles.values())]
+                    view_card = txf.get_card(card_str, piles)
+                    pile = self.game.supply.piles[view_card.name]
+                    print(Card(**c.card_list[pile.name]))
+                    continue
                 try:
                     play_card = txf.get_card(card_str, self.hand)
 
@@ -155,12 +162,12 @@ class Player:
                 if card_str == "help":
                     print(txf.help_message)
                     continue
-                if card_str == "x":
+                elif card_str == "x":
                     if card_methods.confirm_card("Exit game (y/n)?"):
                         self.game.game_over = True
                         return
                     continue
-                if card_str == "e":
+                elif card_str == "e":
                     return
                 # elif card_str == "p":
                 #     self.play_treasure(manual=True)
@@ -186,7 +193,7 @@ class Player:
                     self.print_hand()
                     self.game.verbose = v_tmp
                     continue
-                if card_str == "v":
+                elif card_str == "v":
                     view = True
                     card_str = input("Select card to view (card name):")
                 if len(card_str) == 0:
@@ -545,13 +552,13 @@ class Player:
             if self.game.verbose:
                 print(card.name + " is not in expected location and was not set aside")
 
-    def move(self, from_pile, to_pile, card):
+    def move(self, from_pile, to_pile, card, mute=False):
         try:
             assert card in from_pile
             to_pile.append(card)
             from_pile.remove(card)
         except:
-            if self.game.verbose:
+            if self.game.verbose and not mute:
                 print(card.colored_name() + " is not in expected location and was not moved")
 
     def reveal(self, from_pile, cards=None, num=1, move=True, return_cards=False):
@@ -611,7 +618,7 @@ class Player:
             if effect[0] == c.contraband:
                 output = txf.bold(effect[0] + " x" + str(effect[1][c.number])) + ":\t" + effect[1][c.description]
                 for pile_name in effect[1][c.contraband_cards]:
-                    output += Card(**c.card_list[pile_name]).colored_name() + "\t"
+                    output += Card(**c.card_list[pile_name]).colored_name() + "  "
                 print(output)
             else:
                 print(txf.bold(effect[0] + " x" + str(effect[1][c.number])) + ":\t" + effect[1][c.description])
@@ -717,7 +724,7 @@ class Card:
                                     eval("card_reactions." + card.name.lower().replace(" ", "_") + "_reaction(p, card)")
 
         if discard:
-            player.move(from_pile=player.hand, to_pile=player.active_cards, card=self)
+            player.move(from_pile=player.hand, to_pile=player.active_cards, card=self, mute=mute)
         success = eval("card_methods." + self.name.lower().replace(" ", "_").replace("\'", "") + "_card(player)")
         for p in player.game.players:
             p.effects = tmp_player_effects[p.name]
@@ -971,7 +978,8 @@ class Game:
         self.game_over = False
         self.players = [Player(self, name="Player " + str(i + 1), shelters=shelters) for i in range(players)]
         self.players[0].set_player_name("Bjorni")
-        self.players[-1].human = False
+        for p in self.players[1:]:
+            p.human = False
         self.supply = Supply(self, supply, sets)
         self.use_victory_tokens = self.check_victory_tokens()
 
