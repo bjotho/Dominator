@@ -21,7 +21,7 @@ pile_size = "pile size"
 # junk = "junk"
 # gain = "gain"
 # victory_points = "victory points"
-req_active = "Require active"
+req_active = "require active"
 number = "number"
 description = "description"
 contraband_cards = "contraband cards"
@@ -166,9 +166,13 @@ effect_dict = {
     contraband: {number: 1, req_active: False, description: "You are unable to buy from the following piles: ",
                  contraband_cards: []},
     royal_seal: {number: 1, req_active: True, description: "While this is in play, when you gain a card, you may put "
-                 "that card onto your deck."}
+                 "that card onto your deck."},
+    goons: {number: 1, req_active: True, description: "While this is in play, when you buy a card, " + txf.vt(1) + "."},
+    hoard: {number: 1, req_active: True, description: "While this is in play, when you buy a Victory card, gain a "
+            "Gold."}
 }
 
+# Starting deck for each player
 starting_deck = {
     copper: 7,
     estate: 3
@@ -270,7 +274,7 @@ card_text = {
     goons: txf.bold("+1 Buy") + "\n" + txf.coins(2) + "\nEach other player discards down to 3 cards in hand.\n" + hl
         + "\nWhile this is in play, when you buy a card, " + txf.vt(1) + ".",
     grand_market: txf.bold("+1 Card") + "\n" + txf.bold("+1 Action") + "\n" + txf.bold("+1 Buy") + "\n" + txf.coins(2)
-        + ".\n" + hl + "\nYou can’t buy this if you have any Coppers in play.",
+        + "\n" + hl + "\nYou can’t buy this if you have any Coppers in play.",
     hoard: txf.coins(2, plain=True) + "\n" + hl + "\nWhile this is in play, when you buy a Victory card, gain a Gold.",
     bank: "When you play this, it’s worth " + txf.coins(1, plain=True) + " per Treasure card you have in play "
         "(counting this).",

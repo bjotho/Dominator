@@ -118,15 +118,13 @@ class Player:
                     if not card_methods.confirm_card("Play " + play_card.colored_name() + " (y/n)?"):
                         continue
 
-                play_card.play(self)
+                play_card.play(self, mute=True)
             else:
                 action_cards = [card for card in self.hand if c.action in card.types]
                 if len(action_cards) == 0:
                     break
                 else:
                     card = np.random.choice(action_cards)
-                    if self.game.verbose:
-                        print(self.name + " plays " + card.colored_name())
                     card.play(self)
 
         self.buy()
@@ -210,7 +208,6 @@ class Player:
                             continue
                     cost = pile.cards[-1].get_cost(player=self)
                     if cost < 0:
-                        print("Card not purchasable")
                         continue
                     active_card_names = [card.name for card in self.active_cards]
                     if c.quarry in active_card_names:
@@ -224,11 +221,15 @@ class Player:
                                 self.trash(from_pile=self.active_cards, card=active_t_card)
                         if self.game.verbose:
                             print(self.name + " buys " + pile.colored_name())
-                        self.gain(pile, mute=True)
+                        gained_card = self.gain(pile, mute=True, return_card=True)
                         self.coins -= cost
                         self.buys -= 1
                         if c.talisman in active_card_names:
-                            self.talisman_effect(pile, cost)
+                            self.talisman_effect(pile, gained_card, cost)
+                        if c.goons in active_card_names:
+                            self.goons_effect()
+                        if c.hoard in self.effects:
+                            self.hoard_effect(gained_card)
                     else:
                         print("You do not have enough coins")
                         continue
@@ -237,14 +238,15 @@ class Player:
                     continue
             else:
                 affordable_cards = [pile for pile in list(self.game.supply.piles.values())
-                                    if self.coins >= pile.get_cost(player=self) >= 0 and pile.number > 0]
+                                    if self.coins >= pile.get_cost(player=self, mute=True) >= 0 and pile.number > 0]
                 active_card_names = [card.name for card in self.active_cards]
                 if c.quarry in active_card_names:
                     additional_piles = [pile for pile in list(self.game.supply.piles.values())
                                         if c.action in pile.types and pile not in affordable_cards]
                     for pile in additional_piles:
-                        if pile.number > 0 and pile.get_cost(player=self) >= 0\
-                           and self.coins >= max(0, pile.get_cost(self) - (2 * active_card_names.count(c.quarry))):
+                        if pile.number > 0 and pile.get_cost(player=self, mute=True) >= 0\
+                           and self.coins >= max(0, pile.get_cost(self, mute=True)
+                                                 - (2 * active_card_names.count(c.quarry))):
                             affordable_cards.append(pile)
                 if c.contraband in self.effects:
                     for blocked_pile in self.effects[c.contraband][c.contraband_cards]:
@@ -260,19 +262,21 @@ class Player:
                         self.trash(from_pile=self.active_cards, card=active_t_card)
                 if self.game.verbose:
                     print(self.name + " buys " + pile.colored_name())
-                self.gain(pile, mute=True)
+                gained_card = self.gain(pile, mute=True, return_card=True)
                 self.coins -= pile.get_cost(player=self)
                 self.buys -= 1
                 if c.talisman in active_card_names:
-                    self.talisman_effect(pile, cost)
+                    self.talisman_effect(pile, gained_card, cost)
+                if c.goons in active_card_names:
+                    self.goons_effect()
+                if c.hoard in self.effects:
+                    self.hoard_effect(gained_card)
 
     def play_treasure(self, manual=False):
-        treasure_cards = [c.copper, c.silver, c.gold]
-        if self.game.platinum:
-            treasure_cards.append(c.platinum)
         hand_treasures = [card for card in self.hand if c.treasure in card.types]
         if len(hand_treasures) == 0 and manual and self.game.verbose:
             print("You have no treasure cards in your hand to play!")
+
         while (len(hand_treasures) > 0 and not self.autoplay_treasures) or manual:
             if self.human:
                 if self.game.verbose:
@@ -328,15 +332,11 @@ class Player:
                 if num > 1:
                     if not card_methods.confirm_card("Play all " + treasure_card.colored_name() + " in hand (y/n)?",
                                                      mute_n=True):
-                        if self.game.verbose:
-                            print(self.name + " plays " + treasure_card.colored_name())
                         treasure_card.play(self, action=False)
                         hand_treasures.remove(treasure_card)
                         continue
                     for card in hand_treasures.copy():
                         if card.name == treasure_card.name:
-                            if self.game.verbose:
-                                print(self.name + " plays " + card.colored_name())
                             card.play(self, action=False)
                             hand_treasures.remove(card)
 
@@ -349,27 +349,30 @@ class Player:
                     hand_treasures.remove(treasure_card)
 
             else:
-                # playable_hand_treasures = [card for card in hand_treasures if card not in treasure_cards]
                 card = np.random.choice(hand_treasures)
-                if self.game.verbose:
-                    print(self.name + " plays " + card.colored_name())
                 card.play(self, action=False)
                 hand_treasures.remove(card)
 
         if self.autoplay_treasures:
+            if [card.name for card in hand_treasures].count(c.bank) > 0:
+                offset = 0
+                for index in range(len(hand_treasures)):
+                    i = index - offset
+                    if hand_treasures[i].name == c.bank:
+                        hand_treasures.append(hand_treasures.pop(i))
+                        offset += 1
+
             for card in hand_treasures:
-                if self.game.verbose:
-                    print(self.name + " plays " + card.colored_name())
                 card.play(self, action=False)
 
-    def talisman_effect(self, pile, cost):
+    def talisman_effect(self, pile, gained_card, cost):
         if pile.number > 0:
-            if c.victory not in pile.cards[-1].types and cost <= 4:
+            if c.victory not in gained_card.types and cost <= 4:
                 for _ in range([card.name for card in self.active_cards].count(c.talisman)):
                     if pile.number > 0:
                         if self.game.verbose:
                             print(Card(**c.card_list[c.talisman]).colored_name() +
-                                  " grants " + self.name + " a copy of " + pile.colored_name())
+                                  " grants you a copy of " + pile.colored_name())
                         self.gain(pile, mute=True)
                     else:
                         if self.game.verbose:
@@ -380,6 +383,32 @@ class Player:
             if self.game.verbose:
                 print(Card(**c.card_list[c.talisman]).colored_name() +
                       " would have granted you a copy of " + pile.colored_name() + ", however the pile is empty.")
+
+    def goons_effect(self):
+        try:
+            self.gain_vt(num=self.effects[c.goons][c.number])
+        except:
+            print(Card(**c.card_list[c.goons]).colored_name() + " was unable to grant any VT")
+
+    def hoard_effect(self, gained_card):
+        gold_pile = self.game.supply.piles[c.gold]
+        if gold_pile.number > 0:
+            if c.victory in gained_card.types:
+                for _ in range([card.name for card in self.active_cards].count(c.hoard)):
+                    if gold_pile.number > 0:
+                        if self.game.verbose:
+                            print(Card(**c.card_list[c.hoard]).colored_name() + " grants you a " +
+                                  gold_pile.colored_name())
+                        self.gain(gold_pile, mute=True)
+                    else:
+                        if self.game.verbose:
+                            print(Card(**c.card_list[c.hoard]).colored_name() +
+                                  " would have granted you a " + gold_pile.colored_name() +
+                                  "; however, the pile is empty.")
+        else:
+            if self.game.verbose:
+                print(Card(**c.card_list[c.talisman]).colored_name() +
+                      " would have granted you a " + gold_pile.colored_name() + ", however the pile is empty.")
 
     def shuffle_deck(self):
         for card in self.discard_pile:
@@ -431,7 +460,7 @@ class Player:
         if return_card:
             return card
 
-    def gain(self, pile, to_pile=None, mute=False):
+    def gain(self, pile, to_pile=None, mute=False, return_card=False):
         if pile.number <= 0:
             if self.game.verbose:
                 print("The " + pile.colored_name() + " pile is empty!")
@@ -454,9 +483,8 @@ class Player:
         to_pile.append(gain_card)
         pile.remove()
 
-        if to_pile is self.deck:
-            if self.game.verbose:
-                print(self.name + " places " + pile.colored_name() + " on top of their deck")
+        if to_pile is self.deck and self.game.verbose and not mute:
+            print(self.name + " places " + pile.colored_name() + " on top of their deck")
 
         for card in self.hand:
             if c.reaction in card.types:
@@ -477,6 +505,9 @@ class Player:
                     self.game.trade_route_mat.append(pile.name)
                     if self.game.verbose:
                         print("Coin token moved from " + pile.colored_name() + " pile to Trade Route mat")
+
+        if return_card:
+            return gain_card
 
     def gain_vt(self, num):
         if self.game.verbose:
@@ -611,7 +642,7 @@ class Player:
             if self.game.verbose >= 2:
                 print(card)
             else:
-                print(card.colored_name() + "\t", end="")
+                print(card.colored_name() + "  ", end="")
 
         if self.game.verbose < 2:
             print("")
@@ -653,7 +684,7 @@ class Card:
 
         self.color = self.get_color()
 
-    def play(self, player:Player, action=True, discard=True):
+    def play(self, player:Player, action=True, discard=True, mute=False):
         tmp_supply = [(pile.name, pile.cards, pile.number) for pile in list(player.game.supply.piles.values())]
         tmp_deck = player.deck.copy()
         tmp_hand = player.hand.copy()
@@ -667,6 +698,9 @@ class Card:
         tmp_player_effects = {}
         for p in player.game.players:
             tmp_player_effects[p.name] = p.effects
+
+        if player.game.verbose and not mute:
+            print(player.name + " plays " + self.colored_name())
 
         if c.attack in self.types:
             _players = [p for p in player.game.players if p is not player]
@@ -708,11 +742,11 @@ class Card:
 
         return True
 
-    def get_cost(self, player=None, printing=False, default=False):
+    def get_cost(self, player=None, printing=False, default=False, mute=False):
         if type(self.cost) is int:
             return self.cost
         else:
-            return self.cost(player, printing, default)
+            return self.cost(player, printing, default, mute)
 
     def get_color(self):
         if c.reaction in self.types:
@@ -900,11 +934,11 @@ class Pile:
         tmp_card = Card(**c.card_list[self.name])
         return tmp_card.colored_name()
 
-    def get_cost(self, player=None, printing=False, default=False):
+    def get_cost(self, player=None, printing=False, default=False, mute=False):
         if type(self.cost) is int:
             return self.cost
         else:
-            return self.cost(player, printing, default)
+            return self.cost(player, printing, default, mute)
 
     def get_color(self):
         if self.number <= 2:
@@ -985,7 +1019,7 @@ class Game:
                 player.victory_points += player.victory_tokens
             for card in player.all_cards():
                 if c.victory in card.types or c.curse in card.types:
-                    card.play(player, action=False, discard=False)
+                    card.play(player, action=False, discard=False, mute=True)
 
         self.players.sort(key=lambda p: p.victory_points, reverse=True)
         for i in range(len(self.players)):
@@ -1026,8 +1060,8 @@ class Game:
 
 
 num_players = 2
-supply_cards = [c.counting_house, c.mint, c.rabble, c.royal_seal, c.vault]
-active_sets = [c.base]
+supply_cards = []
+active_sets = []
 
 game = Game(players=num_players, supply=supply_cards, sets=active_sets, platinum=True, colonies=True, verbose=1)
 while not game.game_over:
