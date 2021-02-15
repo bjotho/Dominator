@@ -977,7 +977,11 @@ class Game:
         self.turn = 0
         self.game_over = False
         self.players = [Player(self, name="Player " + str(i + 1), shelters=shelters) for i in range(players)]
-        self.players[0].set_player_name("Bjorni")
+        if c.set_name:
+            name = input("Input your name:")
+            self.players[0].set_player_name(name)
+        else:
+            self.players[0].set_player_name("Bjørni")
         for p in self.players[1:]:
             p.human = False
         self.supply = Supply(self, supply, sets)

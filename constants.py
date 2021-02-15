@@ -3,6 +3,8 @@ import text_formatting as txf
 
 hl = "_" * (txf.text_width - 4)
 
+set_name = True
+
 # Dictionary keys
 name = "name"
 set = "set"
