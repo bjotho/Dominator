@@ -702,6 +702,8 @@ class Card:
         tmp_actions = player.actions
         tmp_buys = player.buys
         tmp_coins = player.coins
+        tmp_victory_points = player.victory_points
+        tmp_victory_tokens = player.victory_tokens
         tmp_player_effects = {}
         for p in player.game.players:
             tmp_player_effects[p.name] = p.effects
@@ -743,6 +745,8 @@ class Card:
             player.actions = tmp_actions
             player.buys = tmp_buys
             player.coins = tmp_coins
+            player.victory_points = tmp_victory_points
+            player.victory_tokens = tmp_victory_tokens
             return False
         if action:
             player.actions -= 1
@@ -1072,7 +1076,7 @@ class Game:
 
 
 num_players = 2
-supply_cards = []
+supply_cards = [c.bishop]
 active_sets = []
 
 game = Game(players=num_players, supply=supply_cards, sets=active_sets, platinum=True, colonies=True, verbose=1)

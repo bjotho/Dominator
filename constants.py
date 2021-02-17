@@ -230,7 +230,7 @@ card_text = {
     witch: txf.bold("+2 Cards") + "\nEach other player gains a Curse.",
     adventurer: "Reveal cards from your deck until you reveal 2 Treasure cards. Put those Treasure cards into your "
         "hand and discard the other revealed cards.",
-    artisan: "Gain a card to your hand costing up to " + txf.coins(5, plain=True) + "\nPut a card from your hand onto "
+    artisan: "Gain a card to your hand costing up to " + txf.coins(5, plain=True) + ".\nPut a card from your hand onto "
         "your deck.",
     copper: txf.coins(1, plain=True),
     silver: txf.coins(2, plain=True),
