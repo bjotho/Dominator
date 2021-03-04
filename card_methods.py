@@ -3,15 +3,15 @@ import constants as c
 import text_formatting as txf
 
 
-def confirm_card(confirmation_str, mute_n=False):
+def confirm_card(player, confirmation_str, mute_n=False):
     while True:
-        confirmation = input(confirmation_str)
+        confirmation = player.game.input(confirmation_str)
         if confirmation not in ["", "y", "n"]:
-            print("Please type \"y\" or \"n\"")
+            player.game.output("Please type \"y\" or \"n\"")
             continue
         if confirmation == "n":
             if not mute_n:
-                print("Aborted")
+                player.game.output("Aborted")
             return False
         return True
 
@@ -29,20 +29,20 @@ def cellar_card(player):
         while True:
             if player.game.verbose:
                 player.print_hand()
-            discard_cards_str = input("Select cards to discard (card names, separate with comma):")
+            discard_cards_str = player.game.input("Select cards to discard (card names, separate with comma):")
             try:
                 discard_list = txf.get_cards(discard_cards_str, player.hand)
                 if discard_list is None:
-                    print("Invalid input")
+                    player.game.output("Invalid input")
                     discard_list = []
                     continue
                 for card in discard_list:
-                    print(card.colored_name())
-                if not confirm_card("The listed cards will be discarded (y/n):"):
+                    player.game.output(card.colored_name())
+                if not confirm_card(player, "The listed cards will be discarded (y/n):"):
                     return False
                 break
             except:
-                print("Invalid input")
+                player.game.output("Invalid input")
                 discard_list = []
                 continue
     else:
@@ -68,26 +68,26 @@ def chapel_card(player):
         while True:
             if player.game.verbose:
                 player.print_hand()
-            trash_cards_str = input("Select up to 4 cards to trash (card names, separate with comma):")
+            trash_cards_str = player.game.input("Select up to 4 cards to trash (card names, separate with comma):")
             try:
                 trash_list = txf.get_cards(trash_cards_str, player.hand)
                 if trash_list is None:
-                    print("Invalid input")
+                    player.game.output("Invalid input")
                     trash_list = []
                     continue
 
                 if len(trash_list) > 4:
                     if player.game.verbose:
-                        print("You can only trash up to 4 cards")
+                        player.game.output("You can only trash up to 4 cards")
                     trash_list = []
                     continue
                 for card in trash_list:
-                    print(card.colored_name())
-                if not confirm_card("The listed cards will be trashed (y/n):"):
+                    player.game.output(card.colored_name())
+                if not confirm_card(player, "The listed cards will be trashed (y/n):"):
                     return False
                 break
             except:
-                print("Invalid input")
+                player.game.output("Invalid input")
                 trash_list = []
                 continue
     else:
@@ -113,7 +113,7 @@ def moat_card(player):
 def chancellor_card(player):
     player.coins += 2
     if player.human:
-        if confirm_card("Discard deck (y/n)?", mute_n=True):
+        if confirm_card(player, "Discard deck (y/n)?", mute_n=True):
             for card in player.deck:
                 player.discard(player.deck, card)
     else:
@@ -129,21 +129,22 @@ def harbinger_card(player):
     player.actions += 1
     if len(player.discard_pile) == 0:
         if player.game.verbose:
-            print(player.name + "\'s discard pile is empty")
+            player.game.output(player.name + "\'s discard pile is empty", client=c.ALL)
         return True
 
     if player.human:
         player.print_discard_pile()
         while True:
-            deck_card = input("Put a card from the discard pile on top of your deck? (card name, \"x\" for none):")
+            deck_card = player.game.input("Put a card from the discard pile on top of your deck? "
+                                          "(card name, \"x\" for none):")
             if deck_card == "x":
-                print("No card moved")
+                player.game.output("No card moved", client=c.ALL)
                 return True
             if len(deck_card) < 1:
-                print("Invalid input")
+                player.game.output("Invalid input")
                 continue
             deck_card = txf.get_card(deck_card, player.discard_pile)
-            if not confirm_card("Move " + deck_card.colored_name() + " to top of deck (y/n)?"):
+            if not confirm_card(player, "Move " + deck_card.colored_name() + " to top of deck (y/n)?"):
                 continue
             player.move(from_pile=player.discard_pile, to_pile=player.deck, card=deck_card)
             break
@@ -170,10 +171,10 @@ def vassal_card(player):
     player.coins += 2
     card = player.draw(return_card=True, to_pile=player.discard_pile)
     if player.game.verbose:
-        print(player.name + " discards " + card.colored_name())
+        player.game.output(player.name + " discards " + card.colored_name(), client=c.ALL)
     if c.action in card.types:
         if player.human:
-            if confirm_card("Play " + card.colored_name() + " (y/n)?"):
+            if confirm_card(player, "Play " + card.colored_name() + " (y/n)?"):
                 success = card.play(player, action=False, discard=False, mute=True)
                 if success:
                     player.move(from_pile=player.discard_pile, to_pile=player.active_cards, card=card)
@@ -202,17 +203,18 @@ def woodcutter_card(player):
 def workshop_card(player):
     if player.human:
         if player.game.verbose:
-            print(player.game.supply)
+            player.game.output(player.game.supply)
         while True:
-            gain_card = input("Select a card to gain costing up to " + txf.coins(4, plain=True) + " (card name):")
+            gain_card = player.game.input("Select a card to gain costing up to " + txf.coins(4, plain=True) +
+                                          " (card name):")
             if len(gain_card) < 1:
-                print("Invalid input")
+                player.game.output("Invalid input")
                 continue
             gainable_cards = [pile for pile in list(player.game.supply.piles.values())
                               if 0 <= pile.get_cost(player, mute=True) <= 4 and pile.number > 0]
             gain_pile = txf.get_card(gain_card, gainable_cards)
             if gain_pile is None:
-                print("Invalid input")
+                player.game.output("Invalid input")
                 continue
             player.gain(gain_pile)
             break
@@ -229,7 +231,8 @@ def workshop_card(player):
 def bureaucrat_card(player):
     player.gain(player.game.supply.piles[c.silver], to_pile=player.deck, mute=True)
     if player.game.verbose:
-        print(player.name + " gains " + txf.treasure(c.silver) + " and puts it on top of their deck")
+        player.game.output(player.name + " gains " + txf.treasure(c.silver) + " and puts it on top of their deck",
+                           client=c.ALL)
 
     victims = [p for p in player.game.players if (c.moat not in p.effects) and (p is not player)]
     for v in victims:
@@ -240,38 +243,38 @@ def bureaucrat_card(player):
             v.reveal(from_pile=v.hand, cards=victory_cards[0])
             v.move(from_pile=v.revealed_cards, to_pile=v.deck, card=victory_cards[0])
             if player.game.verbose:
-                print("... And puts it on top of their deck")
+                player.game.output("... And puts it on top of their deck", client=c.ALL)
         else:
             if v.human:
                 if player.game.verbose:
-                    print("Victory cards:")
+                    player.game.output("Victory cards:", client=v)
                 for card in victory_cards:
                     if player.game.verbose:
                         if player.game.verbose >= 2:
-                            print(card)
+                            player.game.output(card)
                         else:
-                            print("  " + card.colored_name())
+                            player.game.output("  " + card.colored_name(), client=v)
                 while True:
-                    reveal_card_str = input("Select victory card to reveal (card name):")
+                    reveal_card_str = player.game.input("Select victory card to reveal (card name):", client=v)
                     try:
                         reveal_card = txf.get_card(reveal_card_str, victory_cards)
                         if reveal_card is None:
-                            print("Invalid input")
+                            player.game.output("Invalid input", client=v)
                             continue
                         v.reveal(from_pile=v.hand, cards=reveal_card)
                         v.move(from_pile=v.revealed_cards, to_pile=v.deck, card=reveal_card)
                         if player.game.verbose:
-                            print("... And puts it on top of their deck")
+                            player.game.output("... And puts it on top of their deck", client=c.ALL)
                         break
                     except:
-                        print("Invalid input")
+                        player.game.output("Invalid input", client=v)
                         continue
             else:
                 reveal_card = np.random.choice(victory_cards)
                 v.reveal(from_pile=v.hand, cards=reveal_card)
                 v.move(from_pile=v.revealed_cards, to_pile=v.deck, card=reveal_card)
                 if player.game.verbose:
-                    print("... And puts it on top of their deck")
+                    player.game.output("... And puts it on top of their deck", client=c.ALL)
 
     return True
 
@@ -287,17 +290,18 @@ def feast_card(player):
 
     if player.human:
         if player.game.verbose:
-            print(player.game.supply)
+            player.game.output(player.game.supply)
         while True:
-            gain_card_str = input("Select a card to gain costing up to " + txf.coins(5, plain=True) + " (card name):")
+            gain_card_str = player.game.input("Select a card to gain costing up to " + txf.coins(5, plain=True) +
+                                              " (card name):")
             if len(gain_card_str) < 1:
-                print("Invalid input")
+                player.game.output("Invalid input")
                 continue
             gainable_cards = [pile for pile in list(player.game.supply.piles.values())
                               if 0 <= pile.get_cost(player, mute=True) <= 5 and pile.number > 0]
             gain_pile = txf.get_card(gain_card_str, gainable_cards)
             if gain_pile is None:
-                print("Invalid input")
+                player.game.output("Invalid input")
                 continue
             player.gain(gain_pile)
             break
@@ -327,22 +331,22 @@ def militia_card(player):
             if v.human:
                 if player.game.verbose:
                     v.print_hand()
-                    print("Discard down to 3 cards (card names, separate with comma):")
-                discard_cards_str = input()
+                    player.game.output("Discard down to 3 cards (card names, separate with comma):", client=v)
+                discard_cards_str = player.game.input(client=v)
                 try:
                     discard_list = txf.get_cards(discard_cards_str, v.hand)
                     if discard_list is None:
-                        print("Invalid input")
+                        player.game.output("Invalid input", client=v)
                         continue
 
                     if len(v.hand) - len(discard_list) != 3:
                         continue
                     for card in discard_list:
-                        print(card.colored_name())
-                    if not confirm_card("The listed cards will be discarded (y/n):"):
+                        player.game.output(card.colored_name(), client=v)
+                    if not confirm_card(player, "The listed cards will be discarded (y/n):"):
                         continue
                 except:
-                    print("Invalid input")
+                    player.game.output("Invalid input", client=v)
                     continue
             else:
                 tmp_hand = v.hand.copy()
@@ -356,7 +360,7 @@ def militia_card(player):
                 num += 1
 
             if player.game.verbose:
-                print(v.name + " discards " + str(num) + " cards")
+                player.game.output(v.name + " discards " + str(num) + " cards", client=c.ALL)
 
     return True
 
@@ -369,12 +373,12 @@ def moneylender_card(player):
 
     if not copper_card:
         if player.game.verbose:
-            print(player.name + " does not have any Copper cards")
+            player.game.output(player.name + " does not have any Copper cards", client=c.ALL)
         return True
     else:
         if player.human:
             player.print_hand()
-            if not confirm_card("Trash " + copper_card.colored_name() + " (y/n)?"):
+            if not confirm_card(player, "Trash " + copper_card.colored_name() + " (y/n)?"):
                 return True
 
     player.trash(player.hand, copper_card)
@@ -394,24 +398,24 @@ def poacher_card(player):
             while True:
                 if player.game.verbose:
                     player.print_hand()
-                    print("Select " + str(empty_piles) + " cards to discard (card names):")
-                discard_cards_str = input()
+                    player.game.output("Select " + str(empty_piles) + " cards to discard (card names):")
+                discard_cards_str = player.game.input()
                 try:
                     discard_list = txf.get_cards(discard_cards_str, player.hand)
                     if discard_list is None:
-                        print("Invalid input")
+                        player.game.output("Invalid input")
                         discard_list = []
                         continue
 
                     assert len(discard_list) == empty_piles
                     for card in discard_list:
-                        print(card.colored_name())
-                    if not confirm_card("The listed cards will be discarded (y/n):"):
+                        player.game.output(card.colored_name())
+                    if not confirm_card(player, "The listed cards will be discarded (y/n):"):
                         return False
 
                     break
                 except:
-                    print("Invalid input")
+                    player.game.output("Invalid input")
                     discard_list = []
                     continue
     else:
@@ -434,36 +438,36 @@ def remodel_card(player):
         while True:
             if player.game.verbose:
                 player.print_hand()
-            remodel_card_str = input("Select a card to remodel (card name):")
+            remodel_card_str = player.game.input("Select a card to remodel (card name):")
             try:
                 _remodel_card = txf.get_card(remodel_card_str, player.hand)
                 if _remodel_card is None:
-                    print("Invalid input")
+                    player.game.output("Invalid input")
                     continue
 
                 if _remodel_card.get_cost(player, default=True) < 0:
                     continue
 
-                if not confirm_card(_remodel_card.colored_name() + " will be trashed (y/n):"):
+                if not confirm_card(player, _remodel_card.colored_name() + " will be trashed (y/n):"):
                     return False
 
                 gain_coins = _remodel_card.get_cost(player, default=True) + 2
                 if player.game.verbose:
-                    print(player.game.supply)
-                gain_card_str = input("Select a card to gain costing up to " + txf.coins(gain_coins, plain=True) +
-                                      " (card name):")
+                    player.game.output(player.game.supply)
+                gain_card_str = player.game.input("Select a card to gain costing up to " +
+                                                  txf.coins(gain_coins, plain=True) + " (card name):")
                 gainable_cards = [pile for pile in list(player.game.supply.piles.values())
                                   if 0 <= pile.get_cost(player, mute=True) <= gain_coins and pile.number > 0]
                 gain_pile = txf.get_card(gain_card_str, gainable_cards)
                 if gain_pile is None:
-                    print("Invalid input")
+                    player.game.output("Invalid input")
                     continue
                 player.trash(player.hand, _remodel_card)
                 player.gain(gain_pile)
                 break
 
             except:
-                print("Invalid input")
+                player.game.output("Invalid input")
                 continue
     else:
         if len(player.hand) > 0:
@@ -494,22 +498,22 @@ def spy_card(player):
         _reveal_card = p.draw(mute=True, return_card=True, to_pile=p.revealed_cards)
         p.reveal(from_pile=p.revealed_cards, cards=_reveal_card, move=False)
         if player.human:
-            if confirm_card("Put back on deck (y) or discard (n)?:", mute_n=True):
+            if confirm_card(player, "Put back on deck (y) or discard (n)?:", mute_n=True):
                 if player.game.verbose:
-                    print(_reveal_card.colored_name() + " put back on deck")
+                    player.game.output(_reveal_card.colored_name() + " put back on deck", client=c.ALL)
                 p.move(from_pile=p.revealed_cards, to_pile=p.deck, card=_reveal_card)
             else:
                 if player.game.verbose:
-                    print(_reveal_card.colored_name() + " discarded")
+                    player.game.output(_reveal_card.colored_name() + " discarded", client=c.ALL)
                 p.discard(p.revealed_cards, _reveal_card)
         else:
             if np.random.random() > 0.5:
                 if player.game.verbose:
-                    print(_reveal_card.colored_name() + " discarded")
+                    player.game.output(_reveal_card.colored_name() + " discarded", client=c.ALL)
                 p.discard(p.revealed_cards, _reveal_card)
             else:
                 if player.game.verbose:
-                    print(_reveal_card.colored_name() + " put back on deck")
+                    player.game.output(_reveal_card.colored_name() + " put back on deck", client=c.ALL)
                 p.move(from_pile=p.revealed_cards, to_pile=p.deck, card=_reveal_card)
 
     return True
@@ -531,30 +535,30 @@ def thief_card(player):
         else:
             if player.human:
                 while True:
-                    trash_card_str = input("Select card to trash (card name):")
+                    trash_card_str = player.game.input("Select card to trash (card name):")
                     try:
                         trash_card = txf.get_card(trash_card_str, eligible_cards)
                         if trash_card is None:
-                            print("Invalid input")
+                            player.game.output("Invalid input")
                             continue
                         v.trash(v.revealed_cards, trash_card)
                         break
                     except:
-                        print("Invalid input")
+                        player.game.output("Invalid input")
                         continue
             else:
                 trash_card = np.random.choice(eligible_cards)
                 v.trash(v.revealed_cards, trash_card)
 
         if player.human:
-            if confirm_card("Gain " + trash_card.colored_name() + " (y/n)?", mute_n=True):
+            if confirm_card(player, "Gain " + trash_card.colored_name() + " (y/n)?", mute_n=True):
                 if player.game.verbose:
-                    print(player.name + " gains " + trash_card.colored_name())
+                    player.game.output(player.name + " gains " + trash_card.colored_name(), client=c.ALL)
                 player.move(from_pile=player.game.trash[::-1], to_pile=player.discard_pile, card=trash_card)
         else:
             if np.random.random() > 0.5:
                 if player.game.verbose:
-                    print(player.name + " gains " + trash_card.colored_name())
+                    player.game.output(player.name + " gains " + trash_card.colored_name(), client=c.ALL)
                 player.move(from_pile=player.game.trash[::-1], to_pile=player.discard_pile, card=trash_card)
 
     for v in victims:
@@ -573,43 +577,47 @@ def throne_room_card(player):
 
     if no_action_cards:
         if player.game.verbose:
-            print(player.name + " has no action cards to play")
+            player.game.output(player.name + " has no action cards to play", client=c.ALL)
     else:
         if player.human:
             if player.game.verbose:
                 player.print_hand()
             while True:
-                card_str = input("Select action card to play twice (card name):")
+                card_str = player.game.input("Select action card to play twice (card name):")
                 try:
                     throned_card = txf.get_card(card_str, player.hand)
 
                     if throned_card is None:
-                        print("Invalid input")
+                        player.game.output("Invalid input")
                         continue
 
                     if c.action not in throned_card.types:
-                        print(throned_card.colored_name() + " is not an action card")
+                        player.game.output(throned_card.colored_name() + " is not an action card")
                         continue
 
-                    if not confirm_card("Play " + throned_card.colored_name() + " (y/n)?"):
+                    if not confirm_card(player, "Play " + throned_card.colored_name() + " (y/n)?"):
                         continue
 
                     for _ in range(2):
                         if player.game.verbose:
-                            print(player.name + " plays " + throned_card.colored_name())
-                        throned_card.play(player, action=False, mute=True)
+                            player.game.output(player.name + " plays " + throned_card.colored_name(), client=c.ALL)
+                        success = throned_card.play(player, action=False, mute=True)
+                        if not success:
+                            return False
 
                     break
                 except:
-                    print("Invalid input")
+                    player.game.output("Invalid input")
                     continue
         else:
             eligible_cards = [card for card in player.hand if c.action in card.types]
             throned_card = np.random.choice(eligible_cards)
             for _ in range(2):
                 if player.game.verbose:
-                    print(player.name + " plays " + throned_card.colored_name())
-                throned_card.play(player, action=False, mute=True)
+                    player.game.output(player.name + " plays " + throned_card.colored_name(), client=c.ALL)
+                success = throned_card.play(player, action=False, mute=True)
+                if not success:
+                    return False
 
     return True
 
@@ -630,16 +638,16 @@ def bandit_card(player):
         else:
             if v.human:
                 while True:
-                    trash_card_str = input("Select card to trash (card name):")
+                    trash_card_str = player.game.input("Select card to trash (card name):")
                     try:
                         trash_card = txf.get_card(trash_card_str, eligible_cards)
                         if trash_card is None:
-                            print("Invalid input")
+                            player.game.output("Invalid input", client=v)
                             continue
                         v.trash(v.revealed_cards, trash_card)
                         break
                     except:
-                        print("Invalid input")
+                        player.game.output("Invalid input", client=v)
                         continue
             else:
                 trash_card = np.random.choice(eligible_cards)
@@ -684,7 +692,7 @@ def library_card(player):
         card = player.draw(return_card=True)
         if c.action in card.types:
             if player.human:
-                if confirm_card("Set aside " + card.colored_name() + " (y/n)?", mute_n=True):
+                if confirm_card(player, "Set aside " + card.colored_name() + " (y/n)?", mute_n=True):
                     player.move(from_pile=player.hand, to_pile=player.set_aside_cards, card=card)
             else:
                 if player.actions - 1 <= len(player.set_aside_cards):
@@ -709,52 +717,54 @@ def mine_card(player):
     treasure_cards = [card for card in player.hand if c.treasure in card.types]
     if len(treasure_cards) == 0:
         if player.game.verbose:
-            print(player.name + " does not have any treasure cards")
+            player.game.output(player.name + " does not have any treasure cards", client=c.ALL)
         return True
 
     if player.human:
         while True:
             if player.game.verbose:
                 player.print_hand()
-                print("Select a treasure card to trash (card name, \"x\" for none):")
-            mine_card_str = input()
+                player.game.output("Select a treasure card to trash (card name, \"x\" for none):")
+            mine_card_str = player.game.input()
             if mine_card_str == "x":
                 if player.game.verbose:
-                    print("No cards trashed")
+                    player.game.output("No cards trashed", client=c.ALL)
                 return True
             try:
                 _mine_card = txf.get_card(mine_card_str, player.hand)
                 if _mine_card is None or c.treasure not in _mine_card.types:
-                    print("Invalid input")
+                    player.game.output("Invalid input")
                     continue
 
-                if not confirm_card(_mine_card.colored_name() + " will be trashed (y/n):"):
+                if not confirm_card(player, _mine_card.colored_name() + " will be trashed (y/n):"):
                     return False
 
                 gain_coins = _mine_card.get_cost(player, default=True) + 3
                 if player.game.verbose:
-                    print(player.game.supply)
-                    print("Select a treasure card to gain costing up to " + txf.coins(gain_coins, plain=True) + " (card name):")
-                gain_card_str = input()
+                    player.game.output(player.game.supply)
+                    player.game.output("Select a treasure card to gain costing up to " +
+                                       txf.coins(gain_coins, plain=True) + " (card name):")
+                gain_card_str = player.game.input()
 
                 if len(gain_card_str) < 1:
-                    print("Invalid input")
+                    player.game.output("Invalid input")
                     continue
                 gainable_cards = [pile for pile in list(player.game.supply.piles.values())
                                   if 0 <= pile.get_cost(player, mute=True) <= gain_coins and pile.number > 0
                                   and c.treasure in pile.types]
                 gain_pile = txf.get_card(gain_card_str, gainable_cards)
                 if gain_pile is None:
-                    print("Invalid input")
+                    player.game.output("Invalid input")
                     continue
                 player.trash(player.hand, _mine_card)
                 if player.game.verbose:
-                    print(player.name + " gains " + gain_pile.colored_name() + " to their hand")
+                    player.game.output(player.name + " gains " + gain_pile.colored_name() + " to their hand",
+                                       client=c.ALL)
                 player.gain(gain_pile, to_pile=player.hand, mute=True)
                 break
 
             except:
-                print("Invalid input")
+                player.game.output("Invalid input")
                 continue
     else:
         if len(player.hand) > 0:
@@ -768,7 +778,8 @@ def mine_card(player):
                 player.trash(player.hand, _mine_card)
                 player.gain(gain_pile, to_pile=player.hand, mute=True)
                 if player.game.verbose:
-                    print(player.name + " gains " + gain_pile.colored_name() + " to their hand")
+                    player.game.output(player.name + " gains " + gain_pile.colored_name() + " to their hand",
+                                       client=c.ALL)
 
     return True
 
@@ -781,86 +792,89 @@ def sentry_card(player):
         if _card is None:
             break
         if player.game.verbose:
-            print(player.name + " sets aside " + _card.colored_name())
+            player.game.output(player.name + " sets aside " + _card.colored_name(), client=c.ALL)
 
     if len(player.set_aside_cards) == 0:
         if player.game.verbose:
-            print(player.name + " has no cards to set aside")
+            player.game.output(player.name + " has no cards to set aside", client=c.ALL)
         return True
 
     if player.human:
         if player.game.verbose:
-            print("Cards:")
+            player.game.output("Cards:")
             for card in player.set_aside_cards:
-                print("  " + card.colored_name())
+                player.game.output("  " + card.colored_name())
         while True:
-            trash_cards_str = input("Select cards to trash (card names, separate with comma, \"x\" for none):")
+            trash_cards_str = player.game.input("Select cards to trash "
+                                                "(card names, separate with comma, \"x\" for none):")
             if trash_cards_str == "x":
                 if player.game.verbose:
-                    print("No cards trashed")
+                    player.game.output("No cards trashed", client=c.ALL)
                 break
             try:
                 trash_list = txf.get_cards(trash_cards_str, player.set_aside_cards)
                 if trash_list is None:
-                    print("Invalid input")
+                    player.game.output("Invalid input")
                     continue
                 for card in trash_list:
-                    print(card.colored_name())
-                if not confirm_card("The listed cards will be trashed (y/n):"):
+                    player.game.output(card.colored_name())
+                if not confirm_card(player, "The listed cards will be trashed (y/n):"):
                     return False
                 for card in trash_list:
                     player.trash(player.set_aside_cards, card)
                 break
             except:
-                print("Invalid input")
+                player.game.output("Invalid input")
                 continue
 
         if len(player.set_aside_cards) > 0:
             if len(player.set_aside_cards) > 1:
                 if player.game.verbose:
-                    print("Cards:")
+                    player.game.output("Cards:")
                     for card in player.set_aside_cards:
-                        print("  " + card.colored_name())
+                        player.game.output("  " + card.colored_name())
                 while True:
-                    discard_cards_str = input("Select cards to discard "
-                                              "(card names, separate with comma, \"x\" for none):")
+                    discard_cards_str = player.game.input("Select cards to discard "
+                                                          "(card names, separate with comma, \"x\" for none):")
                     if discard_cards_str == "x":
                         if player.game.verbose:
-                            print("No cards discarded")
+                            player.game.output("No cards discarded", client=c.ALL)
                         break
                     try:
                         discard_list = txf.get_cards(discard_cards_str, player.set_aside_cards)
                         if discard_list is None:
-                            print("Invalid input")
+                            player.game.output("Invalid input")
                             continue
                         for card in discard_list:
-                            print(card.colored_name())
-                        if not confirm_card("The listed cards will be discarded (y/n):"):
+                            player.game.output(card.colored_name())
+                        if not confirm_card(player, "The listed cards will be discarded (y/n):"):
                             return False
                         for card in discard_list:
                             player.discard(player.set_aside_cards, card)
                         break
                     except:
-                        print("Invalid input")
+                        player.game.output("Invalid input")
                         continue
             else:
-                if confirm_card("Discard " + player.set_aside_cards[0].colored_name() + " (y/n)?", mute_n=True):
+                if confirm_card(player, "Discard " + player.set_aside_cards[0].colored_name() + " (y/n)?", mute_n=True):
                     player.discard(player.set_aside_cards, player.set_aside_cards[0])
 
         if len(player.set_aside_cards) > 1:
             if player.game.verbose:
-                print("Cards:")
+                player.game.output("Cards:")
                 for card in player.set_aside_cards:
-                    print("  " + card.colored_name())
+                    player.game.output("  " + card.colored_name())
             while True:
-                top_deck_card_str = input("Select card to place on top of deck (card name):")
+                top_deck_card_str = player.game.input("Select card to place on top of deck (card name):")
                 try:
                     top_card, i = txf.get_card(top_deck_card_str, player.set_aside_cards, return_index=True)
                     if top_card is None:
-                        print("Invalid input")
+                        player.game.output("Invalid input")
                         continue
-                    if confirm_card(top_card.colored_name() + " will be placed on top of your deck (with "
+                    if confirm_card(player, top_card.colored_name() + " will be placed on top of your deck (with "
                                     + player.set_aside_cards[1 - i].colored_name() + " directly beneath) (y/n):"):
+                        if player.game.multiplayer():
+                            player.game.output(player.name + "puts two cards on top of their deck", client=c.OTHERS)
                         player.move(from_pile=player.set_aside_cards, to_pile=player.deck,
                                     card=player.set_aside_cards[i - 1])
                         player.move(from_pile=player.set_aside_cards, to_pile=player.deck, card=top_card)
@@ -868,11 +882,14 @@ def sentry_card(player):
                         return False
                     break
                 except:
-                    print("Invalid input")
+                    player.game.output("Invalid input")
                     continue
         elif len(player.set_aside_cards) == 1:
             if player.game.verbose:
-                print(player.name + " puts " + player.set_aside_cards[0].colored_name() + " on top of their deck")
+                player.game.output("You put " + player.set_aside_cards[0].colored_name() + " on top of your deck")
+                if player.game.multiplayer():
+                    player.game.output(player.name + " puts a card on top of their deck", client=c.OTHERS)
+
             player.move(from_pile=player.set_aside_cards, to_pile=player.deck, card=player.set_aside_cards[0])
     else:
         re_deck_cards = [None, None]
@@ -920,17 +937,18 @@ def adventurer_card(player):
 def artisan_card(player):
     if player.human:
         if player.game.verbose:
-            print(player.game.supply)
+            player.game.output(player.game.supply)
         while True:
-            gain_card_str = input("Select a card to gain costing up to " + txf.coins(5, plain=True) + " (card name):")
+            gain_card_str = player.game.input("Select a card to gain costing up to " + txf.coins(5, plain=True) +
+                                              " (card name):")
             if len(gain_card_str) < 1:
-                print("Invalid input")
+                player.game.output("Invalid input")
                 continue
             gainable_cards = [pile for pile in list(player.game.supply.piles.values())
                               if 0 <= pile.get_cost(player, mute=True) <= 5 and pile.number > 0]
             gain_pile = txf.get_card(gain_card_str, gainable_cards)
             if gain_pile is None:
-                print("Invalid input")
+                player.game.output("Invalid input")
                 continue
             player.gain(gain_pile)
             break
@@ -938,18 +956,20 @@ def artisan_card(player):
         if player.game.verbose:
             player.print_hand()
         while len(player.hand) > 0:
-            deck_card_str = input("Put a card from your hand onto your deck (card name):")
+            deck_card_str = player.game.input("Put a card from your hand onto your deck (card name):")
             try:
                 deck_card = txf.get_card(deck_card_str, player.hand)
                 if deck_card is None:
-                    print("Invalid input")
+                    player.game.output("Invalid input")
                     continue
-                if not confirm_card("Put " + deck_card.colored_name() + " on top of deck (y/n)?"):
+                if not confirm_card(player, "Put " + deck_card.colored_name() + " on top of deck (y/n)?"):
                     return False
+                if player.game.multiplayer():
+                    player.game.output(player.name + " puts a card onto their deck", client=c.OTHERS)
                 player.move(from_pile=player.hand, to_pile=player.deck, card=deck_card)
                 break
             except:
-                print("Invalid input")
+                player.game.output("Invalid input")
                 continue
 
     else:
@@ -975,7 +995,7 @@ def loan_card(player):
         revealed_card = player.reveal(from_pile=player.deck, return_cards=True)[0]
         if c.treasure in revealed_card.types:
             if player.human:
-                if confirm_card("Trash " + revealed_card.colored_name() + " (y/n)?"):
+                if confirm_card(player, "Trash " + revealed_card.colored_name() + " (y/n)?", mute_n=True):
                     player.trash(from_pile=player.revealed_cards, card=revealed_card)
             else:
                 if np.random.random() > 0.5:
@@ -996,18 +1016,18 @@ def trade_route_card(player):
         while True:
             if player.game.verbose:
                 player.print_hand()
-            trash_card_str = input("Select card to trash (card name):")
+            trash_card_str = player.game.input("Select card to trash (card name):")
             try:
                 trash_card = txf.get_card(input_str=trash_card_str, from_pile=player.hand)
                 if trash_card is None:
-                    print("Invalid input")
+                    player.game.output("Invalid input")
                     continue
 
-                if not confirm_card(trash_card.colored_name() + " will be trashed (y/n):"):
+                if not confirm_card(player, trash_card.colored_name() + " will be trashed (y/n):"):
                     return False
                 break
             except:
-                print("Invalid input")
+                player.game.output("Invalid input")
                 continue
         player.trash(from_pile=player.hand, card=trash_card)
     else:
@@ -1034,18 +1054,18 @@ def bishop_card(player):
         if player.game.verbose:
             player.print_hand()
         while True:
-            trash_card_str = input("Select card to trash (card name):")
+            trash_card_str = player.game.input("Select card to trash (card name):")
             try:
                 trash_card = txf.get_card(input_str=trash_card_str, from_pile=player.hand)
                 if trash_card is None:
-                    print("Invalid input")
+                    player.game.output("Invalid input")
                     continue
 
-                if not confirm_card(trash_card.colored_name() + " will be trashed (y/n):"):
+                if not confirm_card(player, trash_card.colored_name() + " will be trashed (y/n):"):
                     return False
                 break
             except:
-                print("Invalid input")
+                player.game.output("Invalid input")
                 continue
         player.trash(from_pile=player.hand, card=trash_card)
     else:
@@ -1062,22 +1082,27 @@ def bishop_card(player):
             if player.game.verbose:
                 p.print_hand()
             while True:
-                trash_card_str = input(p.name + " may trash a card from their hand (card name, \"x\" for none):")
+                if player.game.multiplayer():
+                    trash_card_str = player.game.input("You may trash a card from your hand "
+                                                       "(card name, \"x\" for none):", client=p)
+                else:
+                    trash_card_str = player.game.input(p.name + " may trash a card from their hand "
+                                                                "(card name, \"x\" for none):", client=p)
                 if trash_card_str == "x":
                     if player.game.verbose:
-                        print("No cards trashed")
+                        player.game.output(p.name + "trashes no cards", client=c.ALL)
                     break
                 try:
                     trash_card = txf.get_card(input_str=trash_card_str, from_pile=p.hand)
                     if trash_card is None:
-                        print("Invalid input")
+                        player.game.output("Invalid input", client=p)
                         continue
 
-                    if not confirm_card(trash_card.colored_name() + " will be trashed (y/n):"):
+                    if not confirm_card(player, trash_card.colored_name() + " will be trashed (y/n):"):
                         return False
                     break
                 except:
-                    print("Invalid input")
+                    player.game.output("Invalid input", client=p)
                     continue
             if trash_card:
                 p.trash(from_pile=p.hand, card=trash_card)
@@ -1144,17 +1169,17 @@ def contraband_card(player):
     player.buys += 1
 
     blocked_pile = None
-    left_player = player.game.players[player.game.players.index(player) - 1]
+    left_player = player.game.players[(player.game.players.index(player) + 1) % len(player.game.players)]
     if left_player.human:
         while True:
-            blocked_pile_str = input(left_player.name + ", select pile to prevent " + player.name + " from buying "
-                                     "(pile name):")
+            blocked_pile_str = player.game.input(left_player.name + ", select pile to prevent " + player.name +
+                                                 " from buying (pile name):", client=left_player)
             try:
                 blocked_pile = txf.get_pile(input_str=blocked_pile_str, supply_piles=player.game.supply.piles)
                 assert blocked_pile is not None
                 break
             except:
-                print("Invalid input")
+                player.game.output("Invalid input", client=left_player)
                 continue
     else:
         blocked_pile = np.random.choice(list(player.game.supply.piles.values()))
@@ -1165,13 +1190,13 @@ def contraband_card(player):
             player.effects[c.contraband][c.contraband_cards].append(blocked_pile.name)
         else:
             if player.game.verbose:
-                print(blocked_pile.colored_name() + " pile is already blocked")
+                player.game.output(blocked_pile.colored_name() + " pile is already blocked", client=c.ALL)
     else:
         player.effects[c.contraband] = c.effect_dict[c.contraband].copy()
         player.effects[c.contraband][c.contraband_cards] = [blocked_pile.name]
 
     if player.game.verbose:
-        print(left_player.name + " blocks the " + blocked_pile.colored_name() + " pile")
+        player.game.output(left_player.name + " blocks the " + blocked_pile.colored_name() + " pile", client=c.ALL)
 
     return True
 
@@ -1182,20 +1207,23 @@ def counting_house_card(player):
     if player.human:
         if len(discarded_coppers) == 0:
             if player.game.verbose:
-                print("You have no coppers in your discard pile")
+                player.game.output("You have no coppers in your discard pile")
+                if player.game.multiplayer():
+                    player.game.output(player.name + " has no coppers in their discard pile", client=c.OTHERS)
             return True
         else:
             if player.game.verbose:
-                print("Your discard pile contains " + txf.bold(str(len(discarded_coppers)) + "x ") +
-                      discarded_coppers[0].colored_name())
+                player.game.output("Your discard pile contains " + txf.bold(str(len(discarded_coppers)) + "x ") +
+                                   discarded_coppers[0].colored_name())
             while True:
-                num_str = input("How many coppers will you reveal and put into your hand (0-" + str(len(discarded_coppers)) + ")?")
+                num_str = player.game.input("How many coppers will you reveal and put into your hand (0-" +
+                                            str(len(discarded_coppers)) + ")?")
                 try:
                     num = int(num_str)
                     assert len(discarded_coppers) >= num >= 0
                     break
                 except:
-                    print("Invalid input")
+                    player.game.output("Invalid input")
                     continue
     else:
         num = np.random.randint(0, len(discarded_coppers) + 1)
@@ -1206,9 +1234,9 @@ def counting_house_card(player):
 
     if player.game.verbose:
         if len(discarded_coppers) == 1:
-            print("... And puts it into their hand")
+            player.game.output("... And puts it into their hand", client=c.ALL)
         elif len(discarded_coppers) > 1:
-            print("... And puts them into their hand")
+            player.game.output("... And puts them into their hand", client=c.ALL)
 
     return True
 
@@ -1218,11 +1246,13 @@ def mint_card(player):
     copy_card = None
     if len(hand_treasures) == 0:
         if player.game.verbose:
-            print("You have no treasures in your hand")
+            player.game.output("You have no treasures in your hand")
+            if player.game.multiplayer():
+                player.game.output("No treasures revealed", client=c.OTHERS)
         return True
     elif len(hand_treasures) == 1:
         if player.human:
-            if confirm_card("Reveal and copy " + hand_treasures[0].colored_name() + " (y/n)?"):
+            if confirm_card(player, "Reveal and copy " + hand_treasures[0].colored_name() + " (y/n)?"):
                 copy_card = hand_treasures[0]
             else:
                 return False
@@ -1232,17 +1262,19 @@ def mint_card(player):
     else:
         if player.human:
             while True:
-                copy_card_str = input("Select treasure card to reveal and copy (card name, \"x\" for none):")
+                copy_card_str = player.game.input("Select treasure card to reveal and copy "
+                                                  "(card name, \"x\" for none):")
                 if copy_card_str == "x":
+                    player.game.output("No treasures revealed", client=c.ALL)
                     return True
                 try:
                     copy_card = txf.get_card(copy_card_str, hand_treasures)
                     if copy_card is None:
-                        print("Invalid input")
+                        player.game.output("Invalid input")
                         continue
                     break
                 except:
-                    print("Invalid input")
+                    player.game.output("Invalid input")
                     continue
         else:
             if np.random.random() > 0.5:
@@ -1271,10 +1303,10 @@ def mountebank_card(player):
             if v.human:
                 if player.game.verbose:
                     v.print_hand()
-                if confirm_card("Discard a curse card (y/n)?"):
+                if confirm_card(player, "Discard a curse card (y/n)?"):
                     v.discard(from_pile=v.hand, card=curse_cards[0])
                     if player.game.verbose:
-                        print(v.name + " discards " + curse_cards[0].colored_name())
+                        player.game.output(v.name + " discards " + curse_cards[0].colored_name(), client=c.ALL)
                 else:
                     v.gain(curse_pile)
                     v.gain(copper_pile)
@@ -1282,7 +1314,7 @@ def mountebank_card(player):
                 if np.random.random() > 0.5:
                     v.discard(from_pile=v.hand, card=curse_cards[0])
                     if player.game.verbose:
-                        print(v.name + " discards " + curse_cards[0].colored_name())
+                        player.game.output(v.name + " discards " + curse_cards[0].colored_name(), client=c.ALL)
                 else:
                     v.gain(curse_pile)
                     v.gain(copper_pile)
@@ -1297,39 +1329,42 @@ def rabble_card(player):
     victims = [p for p in player.game.players if (c.moat not in p.effects) and (p is not player)]
     for v in victims:
         _revealed_cards = v.reveal(from_pile=v.deck, num=3, return_cards=True)
+        other_human_players = [p for p in player.game.players if p is not v and p.human]
         for card in v.revealed_cards.copy():
             if c.action in card.types or c.treasure in card.types:
                 if player.game.verbose:
-                    print(v.name + " discards " + card.colored_name())
+                    player.game.output(v.name + " discards " + card.colored_name(), client=c.ALL)
                 v.discard(from_pile=v.revealed_cards, card=card)
                 _revealed_cards.remove(card)
 
         if len(_revealed_cards) == 1:
             if player.game.verbose:
-                print(v.name + " puts " + _revealed_cards[0].colored_name() + " on top of their deck")
+                player.game.output(v.name + " puts a card on top of their deck", client=other_human_players)
+                if player.game.multiplayer():
+                    player.game.output("You put " + _revealed_cards[0].colored_name() + "on top of your deck", client=v)
             v.move(from_pile=v.revealed_cards, to_pile=v.deck, card=_revealed_cards[0])
         elif len(_revealed_cards) > 1:
             if v.human:
                 if player.game.verbose:
-                    print("Cards:")
+                    player.game.output("Cards:", client=v)
                     for card in _revealed_cards:
-                        print("  " + card.colored_name())
+                        player.game.output("  " + card.colored_name(), client=v)
                 while True:
-                    order_str = input("Select the order the revealed cards should appear on top of the deck "
-                                      "(card names, separate with comma):")
+                    order_str = player.game.input("Select the order the revealed cards should appear on top of the "
+                                                  "deck (card names, separate with comma):", client=v)
                     try:
                         order_list = txf.get_cards(order_str, v.revealed_cards)
                         if order_list is None:
-                            print("Invalid input")
+                            player.game.output("Invalid input", client=v)
                             order_list = []
                             continue
                         elif len(order_list) < len(_revealed_cards):
-                            print("Please include all cards")
+                            player.game.output("Please include all cards", client=v)
                             order_list = []
                             continue
                         break
                     except:
-                        print("Invalid input")
+                        player.game.output("Invalid input", client=v)
                         order_list = []
                         continue
 
@@ -1339,7 +1374,9 @@ def rabble_card(player):
 
             for card in order_list[::-1]:
                 if player.game.verbose:
-                    print(v.name + " places " + card.colored_name() + " back onto the deck")
+                    player.game.output(v.name + " places a card back onto their deck", client=other_human_players)
+                    if player.game.multiplayer():
+                        player.game.output("You place " + card.colored_name() + " back onto the deck", client=v)
                 v.move(from_pile=v.revealed_cards, to_pile=v.deck, card=card)
 
     return True
@@ -1361,22 +1398,23 @@ def vault_card(player):
         while True:
             if player.game.verbose:
                 player.print_hand()
-            discard_cards_str = input("Select cards to discard (card names, separate with comma, \"x\" for none):")
+            discard_cards_str = player.game.input("Select cards to discard "
+                                                  "(card names, separate with comma, \"x\" for none):")
             if discard_cards_str == "x":
                 break
             try:
                 discard_list = txf.get_cards(discard_cards_str, player.hand)
                 if discard_list is None:
-                    print("Invalid input")
+                    player.game.output("Invalid input")
                     discard_list = []
                     continue
                 for card in discard_list:
-                    print(card.colored_name())
-                if not confirm_card("The listed cards will be discarded (y/n):"):
+                    player.game.output(card.colored_name())
+                if not confirm_card(player, "The listed cards will be discarded (y/n):"):
                     return False
                 break
             except:
-                print("Invalid input")
+                player.game.output("Invalid input")
                 discard_list = []
                 continue
     else:
@@ -1395,27 +1433,27 @@ def vault_card(player):
             if player.game.verbose:
                 p.print_hand()
             while True:
-                discard_cards_str = input("You may discard two cards to draw a new card (card names, separate with "
-                                          "comma, \"x\" for none):")
+                discard_cards_str = player.game.input("You may discard two cards to draw a new card "
+                                                      "(card names, separate with comma, \"x\" for none):", client=p)
                 if discard_cards_str == "x":
                     break
                 try:
                     discard_list = txf.get_cards(discard_cards_str, p.hand)
                     if discard_list is None:
-                        print("Invalid input")
+                        player.game.output("Invalid input", client=p)
                         discard_list = []
                         continue
                     if len(discard_list) != 2:
-                        print("You have to select two cards to discard")
+                        player.game.output("You have to select two cards to discard", client=p)
                         discard_list = []
                         continue
                     for card in discard_list:
-                        print(card.colored_name())
-                    if not confirm_card("The listed cards will be discarded (y/n):"):
+                        player.game.output(card.colored_name(), client=p)
+                    if not confirm_card(player, "The listed cards will be discarded (y/n):"):
                         continue
                     break
                 except:
-                    print("Invalid input")
+                    player.game.output("Invalid input", client=p)
                     discard_list = []
                     continue
         else:
@@ -1467,22 +1505,22 @@ def goons_card(player):
             if v.human:
                 if player.game.verbose:
                     v.print_hand()
-                    print("Discard down to 3 cards (card names, separate with comma):")
-                discard_cards_str = input()
+                    player.game.output("Discard down to 3 cards (card names, separate with comma):", client=v)
+                discard_cards_str = player.game.input(client=v)
                 try:
                     discard_list = txf.get_cards(discard_cards_str, v.hand)
                     if discard_list is None:
-                        print("Invalid input")
+                        player.game.output("Invalid input", client=v)
                         continue
 
                     if len(v.hand) - len(discard_list) != 3:
                         continue
                     for card in discard_list:
-                        print(card.colored_name())
-                    if not confirm_card("The listed cards will be discarded (y/n):"):
+                        player.game.output(card.colored_name(), client=v)
+                    if not confirm_card(player, "The listed cards will be discarded (y/n):"):
                         continue
                 except:
-                    print("Invalid input")
+                    player.game.output("Invalid input", client=v)
                     continue
             else:
                 tmp_hand = v.hand.copy()
@@ -1496,7 +1534,7 @@ def goons_card(player):
                 num += 1
 
             if player.game.verbose:
-                print(v.name + " discards " + str(num) + " cards")
+                player.game.output(v.name + " discards " + str(num) + " cards", client=c.ALL)
 
     if c.goons in player.effects:
         player.effects[c.goons][c.number] += 1
@@ -1540,36 +1578,36 @@ def expand_card(player):
         while True:
             if player.game.verbose:
                 player.print_hand()
-            expand_card_str = input("Select a card to expand (card name):")
+            expand_card_str = player.game.input("Select a card to expand (card name):")
             try:
                 _expand_card = txf.get_card(expand_card_str, player.hand)
                 if _expand_card is None:
-                    print("Invalid input")
+                    player.game.output("Invalid input")
                     continue
 
                 if _expand_card.get_cost(player, default=True) < 0:
                     continue
 
-                if not confirm_card(_expand_card.colored_name() + " will be trashed (y/n):"):
+                if not confirm_card(player, _expand_card.colored_name() + " will be trashed (y/n):"):
                     return False
 
                 gain_coins = _expand_card.get_cost(player, default=True) + 3
                 if player.game.verbose:
-                    print(player.game.supply)
-                gain_card_str = input("Select a card to gain costing up to " + txf.coins(gain_coins, plain=True) +
-                                      " (card name):")
+                    player.game.output(player.game.supply)
+                gain_card_str = player.game.input("Select a card to gain costing up to " +
+                                                  txf.coins(gain_coins, plain=True) + " (card name):")
                 gainable_cards = [pile for pile in list(player.game.supply.piles.values())
                                   if 0 <= pile.get_cost(player, mute=True) <= gain_coins and pile.number > 0]
                 gain_pile = txf.get_card(gain_card_str, gainable_cards)
                 if gain_pile is None:
-                    print("Invalid input")
+                    player.game.output("Invalid input")
                     continue
                 player.trash(player.hand, _expand_card)
                 player.gain(gain_pile)
                 break
 
             except:
-                print("Invalid input")
+                player.game.output("Invalid input")
                 continue
     else:
         if len(player.hand) > 0:
@@ -1591,25 +1629,25 @@ def forge_card(player):
         if player.game.verbose:
             player.print_hand()
         while True:
-            trash_cards_str = input("Select any number of cards to trash (card names, separate with comma, \"x\" for "
-                                    "none):")
+            trash_cards_str = player.game.input("Select any number of cards to trash "
+                                                "(card names, separate with comma, \"x\" for none):")
             try:
                 if trash_cards_str == "x":
                     break
 
                 trash_list = txf.get_cards(trash_cards_str, player.hand)
                 if trash_list is None:
-                    print("Invalid input")
+                    player.game.output("Invalid input")
                     trash_list = []
                     continue
 
                 for card in trash_list:
-                    print(card.colored_name())
-                if not confirm_card("The listed cards will be trashed (y/n):"):
+                    player.game.output(card.colored_name())
+                if not confirm_card(player, "The listed cards will be trashed (y/n):"):
                     return False
                 break
             except:
-                print("Invalid input")
+                player.game.output("Invalid input")
                 trash_list = []
                 continue
     else:
@@ -1624,22 +1662,26 @@ def forge_card(player):
 
     gainable_cards = [pile for pile in list(player.game.supply.piles.values())
                       if pile.get_cost(player, mute=True) == gain_coins and pile.number > 0]
-    if len(gainable_cards) == 0:
-        if player.game.verbose:
-            print("The supply contains no cards costing " + txf.coins(gain_coins, plain=True) + ".")
-        return True
-
     if player.human:
+        if len(gainable_cards) == 0:
+            if player.game.verbose:
+                player.game.output("The supply contains no cards costing " + txf.coins(gain_coins, plain=True) + ".",
+                                   client=c.ALL)
+                if not confirm_card(player, "Do you still want to trash the listed cards (y/n)?"):
+                    return False
+
+                return True
+
         if player.game.verbose:
-            print(player.game.supply)
+            player.game.output(player.game.supply)
         while True:
-            gain_card_str = input("Select a card to gain costing exactly " + txf.coins(gain_coins, plain=True) +
-                                  " (card name, \"x\" to cancel):")
+            gain_card_str = player.game.input("Select a card to gain costing exactly " +
+                                              txf.coins(gain_coins, plain=True) + " (card name, \"x\" to cancel):")
             if gain_card_str == "x":
                 return False
             gain_pile = txf.get_card(gain_card_str, gainable_cards)
             if gain_pile is None:
-                print("Invalid input")
+                player.game.output("Invalid input")
                 continue
             player.gain(gain_pile)
             break
@@ -1658,43 +1700,48 @@ def kings_court_card(player):
 
     if no_action_cards:
         if player.game.verbose:
-            print(player.name + " has no action cards to play")
+            player.game.output(player.name + " has no action cards to play", client=c.ALL)
     else:
         if player.human:
             if player.game.verbose:
                 player.print_hand()
             while True:
-                card_str = input("Select action card to play three times (card name):")
+                card_str = player.game.input("Select action card to play three times (card name):")
                 try:
                     kings_courted_card = txf.get_card(card_str, player.hand)
 
                     if kings_courted_card is None:
-                        print("Invalid input")
+                        player.game.output("Invalid input")
                         continue
 
                     if c.action not in kings_courted_card.types:
-                        print(kings_courted_card.colored_name() + " is not an action card")
+                        player.game.output(kings_courted_card.colored_name() + " is not an action card")
                         continue
 
-                    if not confirm_card("Play " + kings_courted_card.colored_name() + " (y/n)?"):
+                    if not confirm_card(player, "Play " + kings_courted_card.colored_name() + " (y/n)?"):
                         continue
 
                     for _ in range(3):
                         if player.game.verbose:
-                            print(player.name + " plays " + kings_courted_card.colored_name())
-                        kings_courted_card.play(player, action=False, mute=True)
+                            player.game.output(player.name + " plays " + kings_courted_card.colored_name(),
+                                               client=c.ALL)
+                        success = kings_courted_card.play(player, action=False, mute=True)
+                        if not success:
+                            return False
 
                     break
                 except:
-                    print("Invalid input")
+                    player.game.output("Invalid input")
                     continue
         else:
             eligible_cards = [card for card in player.hand if c.action in card.types]
             kings_courted_card = np.random.choice(eligible_cards)
             for _ in range(3):
                 if player.game.verbose:
-                    print(player.name + " plays " + kings_courted_card.colored_name())
-                kings_courted_card.play(player, action=False, mute=True)
+                    player.game.output(player.name + " plays " + kings_courted_card.colored_name(), client=c.ALL)
+                success = kings_courted_card.play(player, action=False, mute=True)
+                if not success:
+                    return False
 
     return True
 

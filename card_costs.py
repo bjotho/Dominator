@@ -10,7 +10,7 @@ def grand_market_cost(player=None, printing=False, default=False, mute=False):
 
     coppers_in_play = any([card.name == c.copper for card in player.active_cards])
     if player.game.verbose and coppers_in_play and not mute:
-        print("You can't buy Grand Market because you have Copper cards in play.")
+        player.game.output("You can't buy Grand Market because you have Copper cards in play.")
 
     if not coppers_in_play:
         return 6
