@@ -139,7 +139,7 @@ class Server:
         while data_left > 0:
             msg = full_msg[msg_len - data_left:]
             client.send(msg)
-            print(f"[SEND] {msg}")
+            # print(f"[SEND] {msg}")
             _msg_len, _respond, _end, data_left = self.receive_header(client)
 
     @staticmethod
