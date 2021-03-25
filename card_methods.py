@@ -5,15 +5,22 @@ import text_formatting as txf
 
 def confirm_card(player, confirmation_str, mute_n=False):
     while True:
-        confirmation = player.game.input(confirmation_str)
+        confirmation = player.game.input(confirmation_str, client=player)
         if confirmation not in ["", "y", "n"]:
             player.game.output("Please type \"y\" or \"n\"")
             continue
         if confirmation == "n":
             if not mute_n:
-                player.game.output("Aborted")
+                player.game.output("Aborted", client=c.ALL)
             return False
         return True
+
+
+def handle_exception(e):
+    if type(e) is ConnectionResetError:
+        raise ConnectionResetError
+    else:
+        print(f"{txf.RED}{e}{txf.END}")
 
 
 # Base game cards
@@ -41,7 +48,8 @@ def cellar_card(player):
                 if not confirm_card(player, "The listed cards will be discarded (y/n):"):
                     return False
                 break
-            except:
+            except Exception as e:
+                handle_exception(e)
                 player.game.output("Invalid input")
                 discard_list = []
                 continue
@@ -86,7 +94,8 @@ def chapel_card(player):
                 if not confirm_card(player, "The listed cards will be trashed (y/n):"):
                     return False
                 break
-            except:
+            except Exception as e:
+                handle_exception(e)
                 player.game.output("Invalid input")
                 trash_list = []
                 continue
@@ -172,6 +181,8 @@ def vassal_card(player):
     card = player.draw(return_card=True, to_pile=player.discard_pile)
     if player.game.verbose:
         player.game.output(player.name + " discards " + card.colored_name(), client=c.ALL)
+
+    success = True
     if c.action in card.types:
         if player.human:
             if confirm_card(player, "Play " + card.colored_name() + " (y/n)?"):
@@ -183,7 +194,7 @@ def vassal_card(player):
             if success:
                 player.move(from_pile=player.discard_pile, to_pile=player.active_cards, card=card)
 
-    return True
+    return success
 
 
 def village_card(player):
@@ -203,7 +214,7 @@ def woodcutter_card(player):
 def workshop_card(player):
     if player.human:
         if player.game.verbose:
-            player.game.output(player.game.supply)
+            player.game.output(player.game.supply.__str__())
         while True:
             gain_card = player.game.input("Select a card to gain costing up to " + txf.coins(4, plain=True) +
                                           " (card name):")
@@ -251,7 +262,7 @@ def bureaucrat_card(player):
                 for card in victory_cards:
                     if player.game.verbose:
                         if player.game.verbose >= 2:
-                            player.game.output(card)
+                            player.game.output(card.__str__())
                         else:
                             player.game.output("  " + card.colored_name(), client=v)
                 while True:
@@ -266,7 +277,8 @@ def bureaucrat_card(player):
                         if player.game.verbose:
                             player.game.output("... And puts it on top of their deck", client=c.ALL)
                         break
-                    except:
+                    except Exception as e:
+                        handle_exception(e)
                         player.game.output("Invalid input", client=v)
                         continue
             else:
@@ -290,7 +302,7 @@ def feast_card(player):
 
     if player.human:
         if player.game.verbose:
-            player.game.output(player.game.supply)
+            player.game.output(player.game.supply.__str__())
         while True:
             gain_card_str = player.game.input("Select a card to gain costing up to " + txf.coins(5, plain=True) +
                                               " (card name):")
@@ -343,9 +355,10 @@ def militia_card(player):
                         continue
                     for card in discard_list:
                         player.game.output(card.colored_name(), client=v)
-                    if not confirm_card(player, "The listed cards will be discarded (y/n):"):
+                    if not confirm_card(v, "The listed cards will be discarded (y/n):"):
                         continue
-                except:
+                except Exception as e:
+                    handle_exception(e)
                     player.game.output("Invalid input", client=v)
                     continue
             else:
@@ -414,7 +427,8 @@ def poacher_card(player):
                         return False
 
                     break
-                except:
+                except Exception as e:
+                    handle_exception(e)
                     player.game.output("Invalid input")
                     discard_list = []
                     continue
@@ -453,7 +467,7 @@ def remodel_card(player):
 
                 gain_coins = _remodel_card.get_cost(player, default=True) + 2
                 if player.game.verbose:
-                    player.game.output(player.game.supply)
+                    player.game.output(player.game.supply.__str__())
                 gain_card_str = player.game.input("Select a card to gain costing up to " +
                                                   txf.coins(gain_coins, plain=True) + " (card name):")
                 gainable_cards = [pile for pile in list(player.game.supply.piles.values())
@@ -466,7 +480,8 @@ def remodel_card(player):
                 player.gain(gain_pile)
                 break
 
-            except:
+            except Exception as e:
+                handle_exception(e)
                 player.game.output("Invalid input")
                 continue
     else:
@@ -498,7 +513,7 @@ def spy_card(player):
         _reveal_card = p.draw(mute=True, return_card=True, to_pile=p.revealed_cards)
         p.reveal(from_pile=p.revealed_cards, cards=_reveal_card, move=False)
         if player.human:
-            if confirm_card(player, "Put back on deck (y) or discard (n)?:", mute_n=True):
+            if confirm_card(p, "Put back on deck (y) or discard (n)?:", mute_n=True):
                 if player.game.verbose:
                     player.game.output(_reveal_card.colored_name() + " put back on deck", client=c.ALL)
                 p.move(from_pile=p.revealed_cards, to_pile=p.deck, card=_reveal_card)
@@ -543,7 +558,8 @@ def thief_card(player):
                             continue
                         v.trash(v.revealed_cards, trash_card)
                         break
-                    except:
+                    except Exception as e:
+                        handle_exception(e)
                         player.game.output("Invalid input")
                         continue
             else:
@@ -606,7 +622,8 @@ def throne_room_card(player):
                             return False
 
                     break
-                except:
+                except Exception as e:
+                    handle_exception(e)
                     player.game.output("Invalid input")
                     continue
         else:
@@ -646,7 +663,8 @@ def bandit_card(player):
                             continue
                         v.trash(v.revealed_cards, trash_card)
                         break
-                    except:
+                    except Exception as e:
+                        handle_exception(e)
                         player.game.output("Invalid input", client=v)
                         continue
             else:
@@ -741,7 +759,7 @@ def mine_card(player):
 
                 gain_coins = _mine_card.get_cost(player, default=True) + 3
                 if player.game.verbose:
-                    player.game.output(player.game.supply)
+                    player.game.output(player.game.supply.__str__())
                     player.game.output("Select a treasure card to gain costing up to " +
                                        txf.coins(gain_coins, plain=True) + " (card name):")
                 gain_card_str = player.game.input()
@@ -763,7 +781,8 @@ def mine_card(player):
                 player.gain(gain_pile, to_pile=player.hand, mute=True)
                 break
 
-            except:
+            except Exception as e:
+                handle_exception(e)
                 player.game.output("Invalid input")
                 continue
     else:
@@ -823,7 +842,8 @@ def sentry_card(player):
                 for card in trash_list:
                     player.trash(player.set_aside_cards, card)
                 break
-            except:
+            except Exception as e:
+                handle_exception(e)
                 player.game.output("Invalid input")
                 continue
 
@@ -852,7 +872,8 @@ def sentry_card(player):
                         for card in discard_list:
                             player.discard(player.set_aside_cards, card)
                         break
-                    except:
+                    except Exception as e:
+                        handle_exception(e)
                         player.game.output("Invalid input")
                         continue
             else:
@@ -881,7 +902,8 @@ def sentry_card(player):
                     else:
                         return False
                     break
-                except:
+                except Exception as e:
+                    handle_exception(e)
                     player.game.output("Invalid input")
                     continue
         elif len(player.set_aside_cards) == 1:
@@ -937,7 +959,7 @@ def adventurer_card(player):
 def artisan_card(player):
     if player.human:
         if player.game.verbose:
-            player.game.output(player.game.supply)
+            player.game.output(player.game.supply.__str__())
         while True:
             gain_card_str = player.game.input("Select a card to gain costing up to " + txf.coins(5, plain=True) +
                                               " (card name):")
@@ -968,7 +990,8 @@ def artisan_card(player):
                     player.game.output(player.name + " puts a card onto their deck", client=c.OTHERS)
                 player.move(from_pile=player.hand, to_pile=player.deck, card=deck_card)
                 break
-            except:
+            except Exception as e:
+                handle_exception(e)
                 player.game.output("Invalid input")
                 continue
 
@@ -1026,7 +1049,8 @@ def trade_route_card(player):
                 if not confirm_card(player, trash_card.colored_name() + " will be trashed (y/n):"):
                     return False
                 break
-            except:
+            except Exception as e:
+                handle_exception(e)
                 player.game.output("Invalid input")
                 continue
         player.trash(from_pile=player.hand, card=trash_card)
@@ -1064,7 +1088,8 @@ def bishop_card(player):
                 if not confirm_card(player, trash_card.colored_name() + " will be trashed (y/n):"):
                     return False
                 break
-            except:
+            except Exception as e:
+                handle_exception(e)
                 player.game.output("Invalid input")
                 continue
         player.trash(from_pile=player.hand, card=trash_card)
@@ -1083,6 +1108,7 @@ def bishop_card(player):
                 p.print_hand()
             while True:
                 if player.game.multiplayer():
+                    player.game.output(p.name + " may trash a card from their hand...")
                     trash_card_str = player.game.input("You may trash a card from your hand "
                                                        "(card name, \"x\" for none):", client=p)
                 else:
@@ -1090,7 +1116,7 @@ def bishop_card(player):
                                                                 "(card name, \"x\" for none):", client=p)
                 if trash_card_str == "x":
                     if player.game.verbose:
-                        player.game.output(p.name + "trashes no cards", client=c.ALL)
+                        player.game.output(p.name + " trashes no cards", client=c.ALL)
                     break
                 try:
                     trash_card = txf.get_card(input_str=trash_card_str, from_pile=p.hand)
@@ -1098,10 +1124,11 @@ def bishop_card(player):
                         player.game.output("Invalid input", client=p)
                         continue
 
-                    if not confirm_card(player, trash_card.colored_name() + " will be trashed (y/n):"):
+                    if not confirm_card(p, trash_card.colored_name() + " will be trashed (y/n):"):
                         return False
                     break
-                except:
+                except Exception as e:
+                    handle_exception(e)
                     player.game.output("Invalid input", client=p)
                     continue
             if trash_card:
@@ -1178,7 +1205,8 @@ def contraband_card(player):
                 blocked_pile = txf.get_pile(input_str=blocked_pile_str, supply_piles=player.game.supply.piles)
                 assert blocked_pile is not None
                 break
-            except:
+            except Exception as e:
+                handle_exception(e)
                 player.game.output("Invalid input", client=left_player)
                 continue
     else:
@@ -1222,7 +1250,8 @@ def counting_house_card(player):
                     num = int(num_str)
                     assert len(discarded_coppers) >= num >= 0
                     break
-                except:
+                except Exception as e:
+                    handle_exception(e)
                     player.game.output("Invalid input")
                     continue
     else:
@@ -1273,7 +1302,8 @@ def mint_card(player):
                         player.game.output("Invalid input")
                         continue
                     break
-                except:
+                except Exception as e:
+                    handle_exception(e)
                     player.game.output("Invalid input")
                     continue
         else:
@@ -1303,7 +1333,7 @@ def mountebank_card(player):
             if v.human:
                 if player.game.verbose:
                     v.print_hand()
-                if confirm_card(player, "Discard a curse card (y/n)?"):
+                if confirm_card(v, "Discard a curse card (y/n)?"):
                     v.discard(from_pile=v.hand, card=curse_cards[0])
                     if player.game.verbose:
                         player.game.output(v.name + " discards " + curse_cards[0].colored_name(), client=c.ALL)
@@ -1363,7 +1393,8 @@ def rabble_card(player):
                             order_list = []
                             continue
                         break
-                    except:
+                    except Exception as e:
+                        handle_exception(e)
                         player.game.output("Invalid input", client=v)
                         order_list = []
                         continue
@@ -1413,7 +1444,8 @@ def vault_card(player):
                 if not confirm_card(player, "The listed cards will be discarded (y/n):"):
                     return False
                 break
-            except:
+            except Exception as e:
+                handle_exception(e)
                 player.game.output("Invalid input")
                 discard_list = []
                 continue
@@ -1449,10 +1481,11 @@ def vault_card(player):
                         continue
                     for card in discard_list:
                         player.game.output(card.colored_name(), client=p)
-                    if not confirm_card(player, "The listed cards will be discarded (y/n):"):
+                    if not confirm_card(p, "The listed cards will be discarded (y/n):"):
                         continue
                     break
-                except:
+                except Exception as e:
+                    handle_exception(e)
                     player.game.output("Invalid input", client=p)
                     discard_list = []
                     continue
@@ -1517,9 +1550,10 @@ def goons_card(player):
                         continue
                     for card in discard_list:
                         player.game.output(card.colored_name(), client=v)
-                    if not confirm_card(player, "The listed cards will be discarded (y/n):"):
+                    if not confirm_card(v, "The listed cards will be discarded (y/n):"):
                         continue
-                except:
+                except Exception as e:
+                    handle_exception(e)
                     player.game.output("Invalid input", client=v)
                     continue
             else:
@@ -1593,7 +1627,7 @@ def expand_card(player):
 
                 gain_coins = _expand_card.get_cost(player, default=True) + 3
                 if player.game.verbose:
-                    player.game.output(player.game.supply)
+                    player.game.output(player.game.supply.__str__())
                 gain_card_str = player.game.input("Select a card to gain costing up to " +
                                                   txf.coins(gain_coins, plain=True) + " (card name):")
                 gainable_cards = [pile for pile in list(player.game.supply.piles.values())
@@ -1606,7 +1640,8 @@ def expand_card(player):
                 player.gain(gain_pile)
                 break
 
-            except:
+            except Exception as e:
+                handle_exception(e)
                 player.game.output("Invalid input")
                 continue
     else:
@@ -1646,7 +1681,8 @@ def forge_card(player):
                 if not confirm_card(player, "The listed cards will be trashed (y/n):"):
                     return False
                 break
-            except:
+            except Exception as e:
+                handle_exception(e)
                 player.game.output("Invalid input")
                 trash_list = []
                 continue
@@ -1673,7 +1709,7 @@ def forge_card(player):
                 return True
 
         if player.game.verbose:
-            player.game.output(player.game.supply)
+            player.game.output(player.game.supply.__str__())
         while True:
             gain_card_str = player.game.input("Select a card to gain costing exactly " +
                                               txf.coins(gain_coins, plain=True) + " (card name, \"x\" to cancel):")
@@ -1730,7 +1766,8 @@ def kings_court_card(player):
                             return False
 
                     break
-                except:
+                except Exception as e:
+                    handle_exception(e)
                     player.game.output("Invalid input")
                     continue
         else:

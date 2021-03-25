@@ -63,9 +63,6 @@ class Player:
     def play(self):
         if self.game.verbose:
             self.game.output(self.name + "\'s turn:", client=c.ALL)
-            # if not self.human:
-            #     self.print_hand()
-            #     self.game.output("", client=c.ALL)
 
         while self.actions > 0:
             if self.human:
@@ -117,7 +114,6 @@ class Player:
                     continue
                 try:
                     play_card = txf.get_card(card_str, self.hand)
-
                     assert c.action in play_card.types
                 except:
                     self.game.output("Invalid input, please try again.")
@@ -127,6 +123,8 @@ class Player:
                     if not card_methods.confirm_card(self, "Play " + play_card.colored_name() + " (y/n)?"):
                         continue
 
+                if self.game.multiplayer():
+                    self.game.output(self.name + " plays " + play_card.colored_name(), client=c.OTHERS)
                 play_card.play(self, mute=True)
             else:
                 action_cards = [card for card in self.hand if c.action in card.types]
@@ -480,7 +478,7 @@ class Player:
             if named:
                 self.game.output(self.name + " draws " + card.colored_name())
                 if self.game.multiplayer():
-                    other_human_players = [p for p in self.game.players if p is not self and p.human]
+                    other_human_players = [p.client_socket for p in self.game.players if p is not self and p.human]
                     self.game.output(self.name + " draws a card", client=other_human_players)
             else:
                 self.game.output(self.name + " draws a card", client=c.ALL)
@@ -578,7 +576,8 @@ class Player:
             from_pile.remove(card)
         except:
             if self.game.verbose:
-                self.game.output(card.name + " is not in expected location and was not set aside", client=c.ALL)
+                self.game.output(card.colored_name() + " is not in expected location and was not set aside",
+                                 client=c.ALL)
 
     def move(self, from_pile, to_pile, card, mute=False):
         try:
@@ -653,32 +652,32 @@ class Player:
                                  effect[1][c.description])
 
     def print_hand(self):
-        self.game.output(self.name + "\'s hand:")
+        self.game.output(self.name + "\'s hand:", client=self)
         if self.game.verbose >= 2:
             for card in self.hand:
-                self.game.output(card.__str__())
+                self.game.output(card.__str__(), client=self)
         else:
             for card in self.hand:
                 if c.reaction in card.types:
-                    self.game.output("  " + txf.reaction(card.name))
+                    self.game.output("  " + txf.reaction(card.name), client=self)
                 elif c.action in card.types:
-                    self.game.output("  " + txf.action(card.name))
+                    self.game.output("  " + txf.action(card.name), client=self)
                 elif c.treasure in card.types:
-                    self.game.output("  " + txf.treasure(card.name))
+                    self.game.output("  " + txf.treasure(card.name), client=self)
                 elif c.victory in card.types:
-                    self.game.output("  " + txf.victory(card.name))
+                    self.game.output("  " + txf.victory(card.name), client=self)
                 elif c.curse in card.types:
-                    self.game.output("  " + txf.curse_card(card.name))
+                    self.game.output("  " + txf.curse_card(card.name), client=self)
                 else:
-                    self.game.output("  " + card.name)
+                    self.game.output("  " + card.name, client=self)
 
     def print_active_cards(self):
-        self.game.output("Cards played this turn:", client=c.ALL)
+        self.game.output("Cards played this turn:")
         for card in self.active_cards:
             if self.game.verbose >= 2:
-                self.game.output(card.__str__(), client=c.ALL)
+                self.game.output(card.__str__())
             else:
-                self.game.output(card.colored_name() + "  ", client=c.ALL, end=0)
+                self.game.output(card.colored_name() + "  ", end=0)
 
         if self.game.verbose < 2:
             self.game.output("", client=c.ALL)
@@ -756,7 +755,12 @@ class Card:
 
         if discard:
             player.move(from_pile=player.hand, to_pile=player.active_cards, card=self, mute=mute)
-        success = eval("card_methods." + self.name.lower().replace(" ", "_").replace("\'", "") + "_card(player)")
+        success = False
+        try:
+            success = eval("card_methods." + self.name.lower().replace(" ", "_").replace("\'", "") + "_card(player)")
+        except ConnectionAbortedError:
+            success = False
+
         for p in player.game.players:
             p.effects = tmp_player_effects[p.name]
         if not success:
@@ -1040,7 +1044,10 @@ class Game:
         if self.verbose:
             self.output("\nTurn " + str(self.turn + 1) + "\n", client=c.ALL)
         player = self.players[self.turn % len(self.players)]
-        player.play()
+        try:
+            player.play()
+        except ConnectionResetError:
+            return
         # self.game.output("player.effects: {", client=c.ALL)
         # for effect, attributes in player.effects.items():
         #     self.game.output("  " + str(effect) + ": {", client=c.ALL)
@@ -1117,7 +1124,7 @@ class Game:
 
     def multiplayer(self):
         human_players = len([p for p in self.players if p.human])
-        if human_players > 1:
+        if human_players > 1 or self.server:
             return True
         else:
             return False
@@ -1135,12 +1142,16 @@ class Game:
         elif type(client) is Player:
             client = client.client_socket
         response = self.server.send_msg(text, client=client, respond=1, end=end)
-        if not response:
-            self.server.clients[client] = None
+        if response is False:
+            name = ""
             for p in self.players:
                 if p.client_socket is client:
                     p.human = False
-            return False
+                    name = "".join(p.name)
+                    p.name += "_BOT"
+
+            self.server.send_msg(f"{name} disconnected")
+            raise ConnectionResetError
 
         return response
 
@@ -1163,9 +1174,8 @@ class Game:
         self.server.send_msg(text, client=client, respond=0, end=end)
 
 
-
 num_players = 2
-num_bots = 1
+num_bots = 0
 players = (num_players, num_bots)
 supply_cards = []
 active_sets = []
@@ -1178,3 +1188,6 @@ while not game.game_over:
 game.score()
 game.print_decks()
 game.print_trash()
+
+if game.multiplayer():
+    game.output(c.GAME_OVER, client=c.ALL)

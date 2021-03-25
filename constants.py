@@ -5,13 +5,17 @@ import text_formatting as txf
 hl = "_" * (txf.text_width - 4)
 
 # Whether to give player 1 default username
-default_name = True
+default_name = False
 
 # Socket constants
-HEADER_SIZE = 16
+HEADER_SIZE = 24
+DATA_LEFT_SIZE = 11
 PORT = 5050
 FORMAT = "utf-8"
-DISCONNECT_MESSAGE = "!DISCONNECT"
+DISCONNECT = "!DISCONNECT"
+NOTHING = "!NOTHING"
+OVERHEAD = "!OVERHEAD"
+GAME_OVER = "!GAME_OVER"
 ALL = 0
 SELF = 1
 OTHERS = 2
@@ -19,7 +23,6 @@ OTHERS = 2
 # Socket dictionary keys
 LENGTH = "length"
 RESPOND = "respond"
-EMPTY = "empty"
 END = "end"
 DATA = "data"
 
