@@ -476,7 +476,7 @@ class Player:
         card = self.deck[-1]
         if not mute and self.game.verbose:
             if named:
-                self.game.output(self.name + " draws " + card.colored_name())
+                self.game.output(self.name + " draws " + card.colored_name(), client=self)
                 if self.game.multiplayer():
                     other_human_players = [p.client_socket for p in self.game.players if p is not self and p.human]
                     self.game.output(self.name + " draws a card", client=other_human_players)

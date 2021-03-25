@@ -39,7 +39,7 @@ class Server:
         # connected = True
         # while connected:
         #     message = self.receive_msg(client_socket)
-        #     if not message or message[DATA] == DISCONNECT_MESSAGE or not self.clients[client_socket]:
+        #     if not message or message[DATA] == DISCONNECT or not self.clients[client_socket]:
         #         connected = False
         #     else:
         #         self.message_list[client_socket] = message[DATA]
@@ -92,7 +92,6 @@ class Server:
     @staticmethod
     def receive_header(client_socket):
         msg_header = client_socket.recv(HEADER_SIZE).decode(FORMAT)
-        print(f"[RECV HEADER] {msg_header}")
         if not len(msg_header):
             return False
 
@@ -125,11 +124,9 @@ class Server:
         else:
             return False
 
-        print(f"[SEND] Sent {msg_header + msg}")
-
         if respond and type(client) is socket.socket:
             response = self.receive_msg(client)[DATA]
-            if response is False:
+            if response is False or response == DISCONNECT:
                 self.close_client_connection(client)
                 return False
             return response
@@ -142,6 +139,7 @@ class Server:
         while data_left > 0:
             msg = full_msg[msg_len - data_left:]
             client.send(msg)
+            print(f"[SEND] {msg}")
             _msg_len, _respond, _end, data_left = self.receive_header(client)
 
     @staticmethod
@@ -155,13 +153,6 @@ class Server:
             msg = msg.__str__().encode(FORMAT)
         msg_header = f"{len(msg):<{LENGTH_SIZE}}{respond}{end}{data_left:<{DATA_LEFT_SIZE}}"
         return msg_header.encode(FORMAT), msg
-
-    # @staticmethod
-    # def delay(msg=None):
-    #     if msg is None:
-    #         msg = ""
-    #     t = max(0.1, len(msg) / 10_000)
-    #     time.sleep(t)
 
     def accept_incoming_connections(self, num=1):
         """Sets up handling for incoming clients.

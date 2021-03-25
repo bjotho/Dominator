@@ -1463,6 +1463,8 @@ def vault_card(player):
         discard_list = []
         if p.human:
             if player.game.verbose:
+                if player.game.multiplayer():
+                    player.game.output(p.name + " may discard two cards to draw a card...")
                 p.print_hand()
             while True:
                 discard_cards_str = player.game.input("You may discard two cards to draw a new card "

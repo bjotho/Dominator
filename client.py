@@ -1,5 +1,6 @@
 import sys
 import socket
+import argparse
 from termios import tcflush, TCIFLUSH
 from constants import HEADER_SIZE, DATA_LEFT_SIZE, PORT, FORMAT, DISCONNECT, NOTHING, OVERHEAD, GAME_OVER, LENGTH,\
     RESPOND, END, DATA
@@ -7,12 +8,7 @@ from constants import HEADER_SIZE, DATA_LEFT_SIZE, PORT, FORMAT, DISCONNECT, NOT
 LENGTH_SIZE = HEADER_SIZE - (DATA_LEFT_SIZE + 2)
 RESPOND_FLAG = LENGTH_SIZE
 END_FLAG = LENGTH_SIZE + 1
-
 IP = socket.gethostname()
-client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-client_socket.connect((IP, PORT))
-# client_socket.setblocking(False)
 
 
 def receive_msg():
@@ -65,7 +61,6 @@ def receive_header():
 def request_resend(data_left):
     msg_header, msg = encode_msg("", 0, 1, data_left)
     client_socket.send(msg_header)
-    # delay(msg_header)
 
 
 def send_msg(msg, respond=0, end=1):
@@ -79,7 +74,6 @@ def send_msg(msg, respond=0, end=1):
     while data_left > 0:
         msg = full_msg[msg_len - data_left:]
         client_socket.send(msg)
-        # delay(msg)
         _msg_len, _respond, _end, data_left = receive_header()
 
     return True
@@ -93,12 +87,15 @@ def encode_msg(msg, respond, end, data_left):
     return msg_header.encode(FORMAT), msg
 
 
-# def delay(msg=None):
-#     if msg is None:
-#         msg = ""
-#     t = max(0.1, len(msg) / 10_000)
-#     time.sleep(t)
+parser = argparse.ArgumentParser(description="Connect to Dominion game host.")
+parser.add_argument("host", type=str, nargs="?", help="Host IP address to connect with.")
+args = parser.parse_args()
+if args.host is not None:
+    IP = args.host
 
+client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+client_socket.connect((IP, PORT))
 
 username = ""
 while not username:
