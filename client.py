@@ -1,9 +1,15 @@
-import sys
 import socket
 import argparse
-from termios import tcflush, TCIFLUSH
 from constants import HEADER_SIZE, DATA_LEFT_SIZE, PORT, FORMAT, DISCONNECT, NOTHING, OVERHEAD, GAME_OVER, LENGTH,\
     RESPOND, END, DATA
+
+from sys import platform, stdin, exit
+if platform in ["cygwin", "win32"]:
+    import msvcrt
+    import colorama
+    colorama.init()
+elif platform in ["linux", "darwin"]:
+    from termios import tcflush, TCIFLUSH
 
 LENGTH_SIZE = HEADER_SIZE - (DATA_LEFT_SIZE + 2)
 RESPOND_FLAG = LENGTH_SIZE
@@ -35,8 +41,8 @@ def receive_full_msg():
 
     while msg_len_part < msg_len:
         resend_len = msg_len - msg_len_part
-        request_resend(data_left=resend_len)
-        _msg_len, _respond, _end, _data_left = receive_header()
+        request_resend(resend_len)
+        _msg_len, _, _, _ = receive_header()
         new_data = client_socket.recv(_msg_len)
         msg_len_part += len(new_data)
         data += new_data
@@ -59,32 +65,39 @@ def receive_header():
 
 
 def request_resend(data_left):
-    msg_header, msg = encode_msg("", 0, 1, data_left)
+    msg_header = encode_header(0, 0, 1, data_left)
     client_socket.send(msg_header)
 
 
 def send_msg(msg, respond=0, end=1):
-    """Sends msg to server socket.
-    respond [0, 1]: Whether to require response from the server.
-    end [0, 1]: Whether to insert newline after end of line."""
-    msg_header, msg = encode_msg(msg, respond, end, -1)
-    full_msg = msg_header + msg
-    msg_len = len(msg)
-    data_left = msg_len
+    """Send msg to client.
+    msg (str): message payload to send to client.
+    respond (int) [0, 1]: Whether to require response from clients.
+    end (int) [0, 1]: Whether to insert newline after end of line."""
+
+    full_msg = encode_msg_body(msg)
+    full_msg_len = len(full_msg)
+    data_left = full_msg_len
+
     while data_left > 0:
-        msg = full_msg[msg_len - data_left:]
+        msg_header = encode_header(data_left, respond, end, -1)
+        msg = msg_header + full_msg[full_msg_len - data_left:]
         client_socket.send(msg)
-        _msg_len, _respond, _end, data_left = receive_header()
+        _, _, _, data_left = receive_header()
 
     return True
 
 
-def encode_msg(msg, respond, end, data_left):
-    if msg == "" and data_left < 0:
+def encode_header(msg_len, respond, end, data_left):
+    msg_header = f"{msg_len:<{LENGTH_SIZE}}{respond}{end}{data_left:<{DATA_LEFT_SIZE}}"
+    return msg_header.encode(FORMAT)
+
+
+def encode_msg_body(msg):
+    if msg == "":
         msg = NOTHING
     msg = msg.encode(FORMAT)
-    msg_header = f"{len(msg):<{LENGTH_SIZE}}{respond}{end}{data_left:<{DATA_LEFT_SIZE}}"
-    return msg_header.encode(FORMAT), msg
+    return msg
 
 
 parser = argparse.ArgumentParser(description="Connect to Dominion game host.")
@@ -100,7 +113,7 @@ client_socket.connect((IP, PORT))
 username = ""
 while not username:
     username = input("Username: ")
-send_msg(username, 0, 1)
+send_msg(username)
 
 while True:
     new_message = None
@@ -109,22 +122,29 @@ while True:
             new_message = receive_msg()
         except ConnectionResetError:
             print("Server closed")
-            sys.exit()
+            exit()
     if new_message[DATA] == OVERHEAD:
         continue
     if new_message[DATA] == GAME_OVER:
         break
     print(new_message[DATA], end=new_message[END])
     if new_message[RESPOND]:
-        tcflush(sys.stdin, TCIFLUSH)
+        if platform in ["linux", "darwin"]:
+            tcflush(stdin, TCIFLUSH)
+        elif platform in ["cygwin", "win32"]:
+            while msvcrt.kbhit():
+                msvcrt.getch()
         response = input(">")
         try:
             send_msg(response)
         except (ConnectionResetError, TypeError):
             print("Server closed")
-            sys.exit()
+            exit()
 
 try:
     send_msg(DISCONNECT)
 except (ConnectionResetError, TypeError):
     pass
+
+if platform == "cygwin" or platform == "win32":
+    input("Press enter to close")

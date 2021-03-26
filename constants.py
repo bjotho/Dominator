@@ -8,8 +8,8 @@ hl = "_" * (txf.text_width - 4)
 default_name = False
 
 # Socket constants
-HEADER_SIZE = 24
-DATA_LEFT_SIZE = 11
+HEADER_SIZE = 16
+DATA_LEFT_SIZE = 7
 PORT = 5050
 FORMAT = "utf-8"
 DISCONNECT = "!DISCONNECT"

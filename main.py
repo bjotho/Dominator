@@ -1,5 +1,3 @@
-import sys
-
 import numpy as np
 import constants as c
 import text_formatting as txf
@@ -7,6 +5,11 @@ import card_methods
 import card_reactions
 import card_costs
 import server
+
+from sys import platform
+if platform in ["cygwin", "win32"]:
+    import colorama
+    colorama.init()
 
 
 class Player:
@@ -109,8 +112,18 @@ class Player:
                     card_str = self.game.input("Select card to view (card name):")
                     piles = [Card(**c.card_list[pile.name]) for pile in list(self.game.supply.piles.values())]
                     view_card = txf.get_card(card_str, piles)
-                    pile = self.game.supply.piles[view_card.name]
+                    try:
+                        pile = self.game.supply.piles[view_card.name]
+                    except AttributeError:
+                        self.game.output("Invalid input")
+                        continue
                     self.game.output(Card(**c.card_list[pile.name]).__str__())
+                    continue
+                elif card_str == "vv":
+                    v_tmp = self.game.verbose
+                    self.game.verbose = 3
+                    self.game.output(self.game.supply.__str__())
+                    self.game.verbose = v_tmp
                     continue
                 try:
                     play_card = txf.get_card(card_str, self.hand)
@@ -559,6 +572,8 @@ class Player:
                 self.game.output(card.colored_name() + " is not in expected location and was not trashed", client=c.ALL)
 
     def discard(self, from_pile, card, mute=True):
+        if self.game.multiplayer():
+            mute = False
         try:
             assert card in from_pile
             if self.game.verbose and not mute:

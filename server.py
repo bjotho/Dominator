@@ -57,13 +57,14 @@ class Server:
 
     def receive_msg(self, client_socket):
         """Receive a message from client_socket"""
+
         try:
             msg_len, respond, end, data = self.receive_full_msg(client_socket)
             end = "\n" if end else ""
             data = data.decode(FORMAT)
             if data == NOTHING:
                 data = ""
-            print(f"[RECEIVE] {client_socket.getpeername()} {msg_len}:{data}")
+            # print(f"[RECEIVE] {client_socket.getpeername()} {msg_len}:{data}")
             return {LENGTH: msg_len,
                     RESPOND: respond,
                     END: end,
@@ -75,13 +76,12 @@ class Server:
     def receive_full_msg(self, client_socket):
         msg_len, respond, end, data_left = self.receive_header(client_socket)
         data = client_socket.recv(msg_len)
-        print(f"data: {data}")
         msg_len_part = len(data)
 
         while msg_len_part < msg_len:
             resend_len = msg_len - msg_len_part
             self.request_resend(client_socket, data_left=resend_len)
-            _msg_len, _respond, _end, _data_left = self.receive_header(client_socket)
+            _msg_len, _, _, _ = self.receive_header(client_socket)
             new_data = client_socket.recv(_msg_len)
             msg_len_part += len(new_data)
             data += new_data
@@ -103,24 +103,22 @@ class Server:
         return msg_len, respond, end, data_left
 
     def request_resend(self, client, data_left):
-        msg_header, msg = self.encode_msg("", 0, 1, data_left)
+        msg_header = self.encode_header(0, 0, 1, data_left)
         client.send(msg_header)
 
     def send_msg(self, msg, client=None, respond=0, end=1):
         """Sends msg to client socket specified in client (all clients if not specified).
-        respond [0, 1]: Whether to require response from clients.
-        end [0, 1]: Whether to insert newline after end of line.
-        data_left (int): how much data was lost and needs to be re-sent."""
-        msg_header, msg = self.encode_msg(msg, respond, end, -1)
-        full_msg = msg_header + msg
+        respond (int) [0, 1]: Whether to require response from clients.
+        end (int) [0, 1]: Whether to insert newline after end of line."""
+
         if not client:
             for c in self.clients:
-                self.send_full_message(c, full_msg)
+                self.send_full_message(c, msg, respond, end)
         elif type(client) is socket.socket:
-            self.send_full_message(client, full_msg)
+            self.send_full_message(client, msg, respond, end)
         elif type(client) is list:
             for c in client:
-                self.send_full_message(c, full_msg)
+                self.send_full_message(c, msg, respond, end)
         else:
             return False
 
@@ -133,26 +131,40 @@ class Server:
 
         return True
 
-    def send_full_message(self, client, full_msg):
-        msg_len = len(full_msg) - HEADER_SIZE
-        data_left = msg_len
+    def send_full_message(self, client, msg, respond, end):
+        """Send msg to client.
+        client (socket.socket): client socket to send message to.
+        msg (str): message payload to send to client.
+        respond (int) [0, 1]: Whether to require response from clients.
+        end (int) [0, 1]: Whether to insert newline after end of line."""
+
+        full_msg = self.encode_msg_body(msg)
+        full_msg_len = len(full_msg)
+        data_left = full_msg_len
+
         while data_left > 0:
-            msg = full_msg[msg_len - data_left:]
+            msg_header = self.encode_header(data_left, respond, end, -1)
+            msg = msg_header + full_msg[full_msg_len - data_left:]
             client.send(msg)
-            # print(f"[SEND] {msg}")
-            _msg_len, _respond, _end, data_left = self.receive_header(client)
+            if data_left != full_msg_len:
+                print(f"[SEND] {msg}")
+            _, _, _, data_left = self.receive_header(client)
 
     @staticmethod
-    def encode_msg(msg, respond, end, data_left):
-        if msg == "" and data_left < 0:
+    def encode_header(msg_len, respond, end, data_left):
+        msg_header = f"{msg_len:<{LENGTH_SIZE}}{respond}{end}{data_left:<{DATA_LEFT_SIZE}}"
+        return msg_header.encode(FORMAT)
+
+    @staticmethod
+    def encode_msg_body(msg):
+        if msg == "":
             msg = NOTHING
         try:
             msg = msg.encode(FORMAT)
         except AttributeError as e:
             print(f"{RED}{e}{END}")
             msg = msg.__str__().encode(FORMAT)
-        msg_header = f"{len(msg):<{LENGTH_SIZE}}{respond}{end}{data_left:<{DATA_LEFT_SIZE}}"
-        return msg_header.encode(FORMAT), msg
+        return msg
 
     def accept_incoming_connections(self, num=1):
         """Sets up handling for incoming clients.
