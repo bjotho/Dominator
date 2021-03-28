@@ -342,6 +342,8 @@ def militia_card(player):
             discard_list = []
             if v.human:
                 if player.game.verbose:
+                    if player.game.multiplayer():
+                        player.game.output(v.name + "must discard down to 3 cards...")
                     v.print_hand()
                     player.game.output("Discard down to 3 cards (card names, separate with comma):", client=v)
                 discard_cards_str = player.game.input(client=v)
@@ -895,7 +897,7 @@ def sentry_card(player):
                     if confirm_card(player, top_card.colored_name() + " will be placed on top of your deck (with "
                                     + player.set_aside_cards[1 - i].colored_name() + " directly beneath) (y/n):"):
                         if player.game.multiplayer():
-                            player.game.output(player.name + "puts two cards on top of their deck", client=c.OTHERS)
+                            player.game.output(player.name + " puts two cards on top of their deck", client=c.OTHERS)
                         player.move(from_pile=player.set_aside_cards, to_pile=player.deck,
                                     card=player.set_aside_cards[i - 1])
                         player.move(from_pile=player.set_aside_cards, to_pile=player.deck, card=top_card)

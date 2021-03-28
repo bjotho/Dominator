@@ -2,7 +2,7 @@ import socket
 import time
 import threading
 from text_formatting import RED, END
-from constants import HEADER_SIZE, DATA_LEFT_SIZE, PORT, FORMAT, DISCONNECT, NOTHING, LENGTH, RESPOND,\
+from constants import HEADER_SIZE, DATA_LEFT_SIZE, PORT, MAX_SIZE, FORMAT, DISCONNECT, NOTHING, LENGTH, RESPOND,\
     END, DATA
 
 LENGTH_SIZE = HEADER_SIZE - (DATA_LEFT_SIZE + 2)
@@ -140,15 +140,25 @@ class Server:
 
         full_msg = self.encode_msg_body(msg)
         full_msg_len = len(full_msg)
-        data_left = full_msg_len
+        _respond = respond
+        _end = end
+        if full_msg_len > MAX_SIZE:
+            _respond = 0
+            _end = 0
 
-        while data_left > 0:
-            msg_header = self.encode_header(data_left, respond, end, -1)
-            msg = msg_header + full_msg[full_msg_len - data_left:]
-            client.send(msg)
-            if data_left != full_msg_len:
-                print(f"[SEND] {msg}")
-            _, _, _, data_left = self.receive_header(client)
+        chunks = [full_msg[i:i + MAX_SIZE] for i in range(0, len(full_msg), MAX_SIZE)]
+
+        for n, chunk in enumerate(chunks):
+            data_left = len(chunk)
+            if n == len(chunks) - 1:
+                _respond = respond
+                _end = end
+            while data_left > 0:
+                msg_header = self.encode_header(data_left, _respond, _end, -1)
+                msg = msg_header + chunk[len(chunk) - data_left:]
+                client.send(msg)
+                # print(f"[SEND] {msg}")
+                _, _, _, data_left = self.receive_header(client)
 
     @staticmethod
     def encode_header(msg_len, respond, end, data_left):
