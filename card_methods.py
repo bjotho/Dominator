@@ -337,7 +337,6 @@ def militia_card(player):
     player.coins += 2
     victims = [p for p in player.game.players if (c.moat not in p.effects) and (p is not player)]
     for v in victims:
-        num = 0
         while len(v.hand) > 3:
             discard_list = []
             if v.human:
@@ -370,6 +369,7 @@ def militia_card(player):
                     discard_list.append(discard_card)
                     del tmp_hand[tmp_hand.index(discard_card)]
 
+            num = 0
             for card in discard_list:
                 v.discard(v.hand, card)
                 num += 1
@@ -1009,6 +1009,9 @@ def artisan_card(player):
             player.move(from_pile=player.hand, to_pile=player.deck, card=deck_card)
 
     return True
+
+
+# Intrigue cards
 
 
 # Prosperity cards

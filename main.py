@@ -1189,8 +1189,8 @@ class Game:
         self.server.send_msg(text, client=client, respond=0, end=end)
 
 
-num_players = 2
-num_bots = 0
+num_players = 1
+num_bots = 1
 players = (num_players, num_bots)
 supply_cards = []
 active_sets = []

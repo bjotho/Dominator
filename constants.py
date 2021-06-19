@@ -1,3 +1,4 @@
+import constants
 import text_formatting as txf
 
 
@@ -149,6 +150,40 @@ estate = "Estate"
 duchy = "Duchy"
 province = "Province"
 
+# Intrigue cards
+courtyard = "Courtyard"
+lurker = "Lurker"
+pawn = "Pawn"
+masquerade = "Masquerade"
+shanty_town = "Shanty Town"
+steward = "Steward"
+swindler = "Swindler"
+wishing_well = "Wishing Well"
+baron = "Baron"
+bridge = "Bridge"
+conspirator = "Conspirator"
+diplomat = "Diplomat"
+ironworks = "Ironworks"
+mill = "Mill"
+mining_village = "Mining Village"
+secret_passage = "Secret Passage"
+courtier = "Courtier"
+duke = "Duke"
+minion = "Minion"
+patrol = "Patrol"
+replace = "Replace"
+torturer = "Torturer"
+trading_post = "Trading Post"
+upgrade = "Upgrade"
+harem = "Harem"
+nobles = "Nobles"
+secret_chamber = "Secret Chamber"
+great_hall = "Great Hall"
+coppersmith = "Coppersmith"
+scout = "Scout"
+saboteur = "Saboteur"
+tribute = "Tribute"
+
 # Prosperity cards
 loan = "Loan"
 trade_route = "Trade Route"
@@ -261,6 +296,69 @@ card_text = {
     duchy: txf.vp(3, plain=True),
     province: txf.vp(6, plain=True),
     curse: txf.curse(-1),
+    # Intrigue cards
+    courtyard: txf.bold("+3 Cards") + "\nPut a card from your hand onto your deck.",
+    lurker: txf.bold("+1 Action") + "\nChoose one: Trash an Action card from the Supply; or gain an Action card from "
+        "the trash.",
+    pawn: "Choose two: " + txf.bold("+1 Card") + "; " + txf.bold("+1 Action") + "; " + txf.bold("+1 Buy") + "; "
+        + txf.coins(1) + ". The choices must be different.",
+    masquerade: txf.bold("+2 Cards") + "\nEach player with any cards in hand passes one to the next such player to "
+        "their left, at once. Then you may trash a card from your hand.",
+    shanty_town: txf.bold("+2 Actions") + "\nReveal your hand. If you have no Action cards in hand, "
+        + txf.bold("+2 Cards") + ".",
+    steward: "Choose one: " + txf.bold("+2 Cards") + "; or " + txf.coins(2) + "; or trash 2 cards from your hand.",
+    swindler: txf.coins(2) + "\nEach other player trashes the top card of their deck and gains a card with the same "
+        "cost that you choose.",
+    wishing_well: txf.bold("+1 Card") + "\n" + txf.bold("+1 Action") + "\nName a card, then reveal the top card of "
+        "your deck. If you named it, put it into your hand.",
+    baron: txf.bold("+1 Buy") + "\nYou may discard an Estate for " + txf.coins(4) + ". If you don't, gain an Estate.",
+    bridge: txf.bold("+1 Buy") + "\n" + txf.coins(1) + "\nThis turn, cards (everywhere) cost "
+        + txf.coins(1, plain=True) + " less, but not less than " + txf.coins(0, plain=True) + ".",
+    conspirator: txf.coins(2) + "\nIf you've played 3 or more Actions this turn (counting this), "
+        + txf.bold("+1 Card") + " and " + txf.bold("+1 Action") + ".",
+    diplomat: txf.bold("+2 Cards") + "\nIf you have 5 or fewer cards in hand (after drawing), " + txf.bold("+2 Actions")
+        + ".\n" + hl + "\nWhen another player plays an Attack card, you may first reveal this from a hand of 5 or more "
+        "cards, to draw 2 cards then discard 3.",
+    ironworks: "Gain a card costing up to " + txf.coins(4, plain=True) + ". If the gained card is an...\nAction card, "
+        + txf.bold("+1 Action") + "\nTreasure card, " + txf.coins(1) + "\nVictory card, " + txf.bold("+1 Card"),
+    mill: txf.bold("+1 Card") + "\n" + txf.bold("+1 Action") + "\nYou may discard 2 cards, for " + txf.coins(2) + ".\n"
+        + hl + "\n" + txf.vp(1, plain=True),
+    mining_village: txf.bold("+1 Card") + "\n" + txf.bold("+2 Actions") + "\nYou may trash this for " + txf.coins(2)
+        + ".",
+    secret_passage: txf.bold("+2 Cards") + "\n" + txf.bold("+1 Action") + "\nTake a card from your hand and put it "
+        "anywhere in your deck.",
+    courtier: "Reveal a card from your hand. For each type it has (Action, Attack, etc.), choose one: "
+        + txf.bold("+1 Action") + "; or " + txf.bold("+1 Buy") + "; or " + txf.coins(3) + "; or gain a Gold. The "
+        "choices must be different.",
+    duke: "Worth " + txf.vp(1, plain=True) + " per Duchy you have.",
+    minion: txf.bold("+1 Action") + "\nChoose one: " + txf.coins(2) + "; or discard your hand, " + txf.bold("+4 Cards")
+        + ", and each other player with at least 5 cards in hand discards their hand and draws 4 cards.",
+    patrol: txf.bold("+3 Cards") + "\nReveal the top 4 cards of your deck. Put the Victory cards and Curses into your "
+        "hand. Put the rest back in any order.",
+    replace: "Trash a card from your hand. Gain a card costing up to " + txf.coins(2, plain=True) + " more than it. If "
+        "the gained card is an Action or Treasure, put it onto your deck; if it's a Victory card, each other player "
+        "gains a Curse.",
+    torturer: txf.bold("+3 Cards") + "\nEach other player either discards 2 cards or gains a Curse to their hand, "
+        "their choice. (They may pick an option they can't do.)",
+    trading_post: "Trash 2 cards from your hand. If you did, gain a Silver to your hand.",
+    upgrade: txf.bold("+1 Card") + "\n" + txf.bold("+1 Action") + "\nTrash a card from your hand. Gain a card costing "
+        "exactly " + txf.coins(1, plain=True) + " more than it.",
+    harem: txf.coins(2, plain=True) + "\n" + hl + "\n" + txf.vp(2, plain=True),
+    nobles: "Choose one: " + txf.bold("+3 Cards") + "; or " + txf.bold("+2 Actions") + ".\n" + hl
+        + txf.vp(2, plain=True),
+    secret_chamber: "Discard any number of cards. " + txf.coins(1) + " per card discarded.\n" + hl + "\nWhen another "
+        "player plays an Attack card, you may reveal this from your hand. If you do, " + txf.bold("+2 Cards") + ", "
+        "then put 2 cards from your hand on top of your deck.",
+    great_hall: txf.bold("+1 Card") + "\n" + txf.bold("+1 Action") + "\n" + hl + "\n" + txf.vp(1, plain=True),
+    coppersmith: "Copper produces an extra " + txf.coins(1, plain=True) + " this turn.",
+    scout: txf.bold("+1 Action") + "\nReveal the top 4 cards of your deck. Put the revealed Victory cards into your "
+        "hand. Put the other cards on top of your deck in any order.",
+    saboteur: "Each other player reveals cards from the top of their deck until revealing one costing "
+        + txf.coins(3, plain=True) + " or more. He or she trashes that card and may gain a card costing at most "
+        + txf.coins(2, plain=True) + " less than it. The other revealed cards are discarded.",
+    tribute: "The player to your left reveals then discards the top 2 cards of their deck. For each differently named "
+        "card revealed, if it is an...\nAction Card, " + txf.bold("+2 Actions") + "\nTreasure Card, " + txf.coins(2)
+        + "\nVictory Card, " + txf.bold("+2 Cards"),
     # Prosperity cards
     loan: txf.coins(1, plain=True) + "\nWhen you play this, reveal cards from your deck until you reveal a Treasure. "
         "Discard it or trash it. Discard the other cards.",

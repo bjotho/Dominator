@@ -132,7 +132,7 @@ class Server:
         return True
 
     def send_full_message(self, client, msg, respond, end):
-        """Send msg to client.
+        """Send msg to client in chunks of size MAX_SIZE.
         client (socket.socket): client socket to send message to.
         msg (str): message payload to send to client.
         respond (int) [0, 1]: Whether to require response from clients.
