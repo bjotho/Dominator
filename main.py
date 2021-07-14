@@ -1193,7 +1193,7 @@ num_players = 1
 num_bots = 1
 players = (num_players, num_bots)
 supply_cards = []
-active_sets = []
+active_sets = [c.base, c.prosperity]
 
 game = Game(players=players, supply=supply_cards, sets=active_sets, platinum=True, colonies=True, verbose=1)
 output = game.output
