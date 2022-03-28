@@ -3,6 +3,11 @@ import constants as c
 import text_formatting as txf
 
 
+""" This file contains implementations of the effects of each card.
+    Each card has it's own method with the card name followed by _card
+    (confirm_card is just a utility function)"""
+
+
 def confirm_card(player, confirmation_str, mute_n=False):
     while True:
         confirmation = player.game.input(confirmation_str, client=player)
@@ -381,22 +386,22 @@ def militia_card(player):
 
 
 def moneylender_card(player):
-    copper_card = None
+    _copper_card = None
     for card in player.hand:
         if card.name == c.copper:
-            copper_card = card
+            _copper_card = card
 
-    if not copper_card:
+    if not _copper_card:
         if player.game.verbose:
             player.game.output(player.name + " does not have any Copper cards", client=c.ALL)
         return True
     else:
         if player.human:
             player.print_hand()
-            if not confirm_card(player, "Trash " + copper_card.colored_name() + " (y/n)?"):
+            if not confirm_card(player, "Trash " + _copper_card.colored_name() + " (y/n)?"):
                 return True
 
-    player.trash(player.hand, copper_card)
+    player.trash(player.hand, _copper_card)
     player.coins += 3
 
     return True
@@ -1014,6 +1019,7 @@ def artisan_card(player):
 # Intrigue cards
 
 
+
 # Prosperity cards
 
 def loan_card(player):
@@ -1367,8 +1373,6 @@ def rabble_card(player):
         other_human_players = [p for p in player.game.players if p is not v and p.human]
         for card in v.revealed_cards.copy():
             if c.action in card.types or c.treasure in card.types:
-                if player.game.verbose:
-                    player.game.output(v.name + " discards " + card.colored_name(), client=c.ALL)
                 v.discard(from_pile=v.revealed_cards, card=card)
                 _revealed_cards.remove(card)
 

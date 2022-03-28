@@ -146,5 +146,5 @@ try:
 except (ConnectionResetError, TypeError):
     pass
 
-if platform == "cygwin" or platform == "win32":
+if platform in ["cygwin", "win32"]:
     input("Press enter to close")

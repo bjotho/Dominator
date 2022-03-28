@@ -23,6 +23,8 @@ COIN = BOLD + BLACK + BRIGHT_YELLOW_BG
 VP = BOLD + BLACK + BRIGHT_GREEN_BG
 CURSE = BOLD + BLACK + BRIGHT_MAGENTA_BG
 
+card_width = 30
+text_width = card_width - 4
 placeholder_list = ["\0", "\1", "\2", "\3", "\4", "\5", "\6", "\7"]
 help_message = "List of commands:\n"\
                "  b:\tInitiate buying phase\n"\
@@ -34,7 +36,7 @@ help_message = "List of commands:\n"\
                "  fx:\tView all active effects\n"\
                "  e:\tEnd turn\n"\
                "  x:\tEnd game\n"
-# "  p:\tPlay additional treasure cards during buy phase\n"\
+# "  p:\tPlay additional treasure cards during buy phase\n"
 
 
 def bold(text:str):
@@ -99,10 +101,6 @@ def victory(text:str):
 
 def curse_card(text:str):
     return BLACK + BRIGHT_MAGENTA_BG + " " + text + " " + END
-
-
-card_width = 30
-text_width = card_width - 4
 
 
 def center_recursive(text, format_groups=None):

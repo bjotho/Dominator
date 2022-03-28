@@ -666,8 +666,8 @@ class Player:
                 self.game.output(txf.bold(effect[0] + " x" + str(effect[1][c.number])) + ":\t" +
                                  effect[1][c.description])
 
-    def print_hand(self):
-        self.game.output(self.name + "\'s hand:", client=self)
+    def print_hand(self, hand_desc=" "):
+        self.game.output(self.name + "\'s" + hand_desc + "hand:", client=self)
         if self.game.verbose >= 2:
             for card in self.hand:
                 self.game.output(card.__str__(), client=self)
@@ -761,7 +761,7 @@ class Card:
                     if c.reaction in card.types:
                         if c.reaction_triggers[card.name] == c.attack:
                             if p.human:
-                                if card_methods.confirm_card(player, "Will " + p.name + " reveal " + card.colored_name()
+                                if card_methods.confirm_card(p, "Will " + p.name + " reveal " + card.colored_name()
                                                              + " reaction card (y/n)?", mute_n=True):
                                     eval("card_reactions." + card.name.lower().replace(" ", "_") + "_reaction(p, card)")
                             else:
@@ -1073,6 +1073,8 @@ class Game:
         player.cleanup()
         if not self.game_over:
             self.game_over = self.end_conditions()
+        if self.multiplayer():
+            player.print_hand(hand_desc=" new ")
         self.turn += 1
 
     def end_conditions(self):
@@ -1186,6 +1188,11 @@ class Game:
             client.remove(player_soc)
         elif type(client) is Player:
             client = client.client_socket
+        elif type(client) is list:
+            if len(client) > 0:
+                if type(client[0]) is Player:
+                    client = [p.client_socket for p in client if p.human]
+
         self.server.send_msg(text, client=client, respond=0, end=end)
 
 
@@ -1197,6 +1204,10 @@ active_sets = [c.base, c.prosperity]
 
 game = Game(players=players, supply=supply_cards, sets=active_sets, platinum=True, colonies=True, verbose=1)
 output = game.output
+for p in game.players[1:]:
+    if p.human:
+        p.print_hand(hand_desc=" starting ")
+
 while not game.game_over:
     game.gameloop()
 
