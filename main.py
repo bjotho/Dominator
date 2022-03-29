@@ -4,6 +4,7 @@ import text_formatting as txf
 import card_methods
 import card_reactions
 import card_costs
+import card_effects
 import server
 
 from sys import platform
@@ -222,34 +223,24 @@ class Player:
                     self.game.output(Card(**c.card_list[pile.name]).__str__())
                     continue
                 if pile.number > 0:
-                    if c.contraband in self.effects:
-                        if pile.name in self.effects[c.contraband][c.contraband_cards]:
-                            self.game.output(pile.colored_name() + " blocked by Contraband", client=c.ALL)
-                            continue
+                    if not card_effects.contraband_effect(self, pile):
+                        continue
                     cost = pile.cards[-1].get_cost(player=self)
                     if cost < 0:
                         continue
-                    active_card_names = [card.name for card in self.active_cards]
-                    if c.quarry in active_card_names:
-                        if c.action in pile.cards[-1].types:
-                            cost = max(0, cost - (2 * active_card_names.count(c.quarry)))
+                    cost = card_effects.quarry_effect(self, pile, cost)
                     if self.coins >= cost >= 0:
                         if pile.name == c.mint:
-                            if not card_methods.confirm_card(self, "Trash all active treasure cards (y/n)?"):
+                            if not card_effects.mint_effect(self):
                                 continue
-                            for active_t_card in [card for card in self.active_cards if c.treasure in card.types]:
-                                self.trash(from_pile=self.active_cards, card=active_t_card)
                         if self.game.verbose:
                             self.game.output(self.name + " buys " + pile.colored_name(), client=c.ALL)
                         gained_card = self.gain(pile, mute=True, return_card=True)
                         self.coins -= cost
                         self.buys -= 1
-                        if c.talisman in active_card_names:
-                            self.talisman_effect(pile, gained_card, cost)
-                        if c.goons in active_card_names:
-                            self.goons_effect()
-                        if c.hoard in self.effects:
-                            self.hoard_effect(gained_card)
+                        card_effects.talisman_effect(self, pile, gained_card, cost, Card)
+                        card_effects.goons_effect(self, Card)
+                        card_effects.hoard_effect(self, gained_card, Card)
                     else:
                         self.game.output("You do not have enough coins")
                         continue
@@ -273,6 +264,7 @@ class Player:
                         for _pile in affordable_cards:
                             if _pile.name == blocked_pile:
                                 affordable_cards.remove(_pile)
+                affordable_cards.remove(self.game.supply.piles[c.curse])
                 pile = self.game.supply.piles[np.random.choice(affordable_cards).name]
                 cost = pile.get_cost(player=self)
                 if c.quarry in self.effects and c.action in pile.types:
@@ -286,11 +278,11 @@ class Player:
                 self.coins -= pile.get_cost(player=self)
                 self.buys -= 1
                 if c.talisman in active_card_names:
-                    self.talisman_effect(pile, gained_card, cost)
+                    card_effects.talisman_effect(self, pile, gained_card, cost, Card)
                 if c.goons in active_card_names:
-                    self.goons_effect()
+                    card_effects.goons_effect(self, Card)
                 if c.hoard in self.effects:
-                    self.hoard_effect(gained_card)
+                    card_effects.hoard_effect(self, gained_card, Card)
 
     def play_treasure(self, manual=False):
         hand_treasures = [card for card in self.hand if c.treasure in card.types]
@@ -385,72 +377,6 @@ class Player:
             for card in hand_treasures:
                 card.play(self, action=False)
 
-    def talisman_effect(self, pile, gained_card, cost):
-        if pile.number > 0:
-            if c.victory not in gained_card.types and cost <= 4:
-                for _ in range([card.name for card in self.active_cards].count(c.talisman)):
-                    if pile.number > 0:
-                        if self.game.verbose:
-                            card_name = Card(**c.card_list[c.talisman]).colored_name()
-                            self.game.output(card_name + " grants you a copy of " + pile.colored_name())
-                            if self.game.multiplayer():
-                                self.game.output(card_name + " grants " + self.name + " a copy of " +
-                                                 pile.colored_name(), client=c.OTHERS)
-                        self.gain(pile, mute=True)
-                    else:
-                        if self.game.verbose:
-                            card_name = Card(**c.card_list[c.talisman]).colored_name()
-                            self.game.output(card_name + " would have granted you a copy of " + pile.colored_name() +
-                                             "; however, the pile is empty.")
-                            if self.game.multiplayer():
-                                self.game.output(card_name + " would have granted " + self.name + " a copy of " +
-                                                 pile.colored_name() + "; however, the pile is empty.", client=c.OTHERS)
-        else:
-            if self.game.verbose:
-                card_name = Card(**c.card_list[c.talisman]).colored_name()
-                self.game.output(card_name + " would have granted you a copy of " + pile.colored_name() +
-                                 ", however the pile is empty.")
-                if self.game.multiplayer():
-                    self.game.output(card_name + " would have granted " + self.name + " a copy of " +
-                                     pile.colored_name() + ", however the pile is empty.", client=c.OTHERS)
-
-    def goons_effect(self):
-        try:
-            self.gain_vt(num=self.effects[c.goons][c.number])
-        except:
-            self.game.output(Card(**c.card_list[c.goons]).colored_name() + " was unable to grant any VT", client=c.ALL)
-
-    def hoard_effect(self, gained_card):
-        gold_pile = self.game.supply.piles[c.gold]
-        if gold_pile.number > 0:
-            if c.victory in gained_card.types:
-                for _ in range([card.name for card in self.active_cards].count(c.hoard)):
-                    if gold_pile.number > 0:
-                        if self.game.verbose:
-                            card_name = Card(**c.card_list[c.hoard]).colored_name()
-                            self.game.output(card_name + " grants you a " + gold_pile.colored_name())
-                            if self.game.multiplayer():
-                                self.game.output(card_name + " grants " + self.name + " a " + gold_pile.colored_name(),
-                                                 client=c.OTHERS)
-                        self.gain(gold_pile, mute=True)
-                    else:
-                        if self.game.verbose:
-                            card_name = Card(**c.card_list[c.hoard]).colored_name()
-                            self.game.output(card_name + " would have granted you a " + gold_pile.colored_name() +
-                                             "; however, the pile is empty.")
-                            if self.game.multiplayer():
-                                self.game.output(card_name + " would have granted " + self.name + " a " +
-                                                 gold_pile.colored_name() + "; however, the pile is empty.",
-                                                 client=c.OTHERS)
-        else:
-            if self.game.verbose:
-                card_name = Card(**c.card_list[c.talisman]).colored_name()
-                self.game.output(card_name + " would have granted you a " + gold_pile.colored_name() +
-                                 ", however the pile is empty.")
-                if self.game.multiplayer():
-                    self.game.output(card_name + " would have granted " + self.name + " a " + gold_pile.colored_name() +
-                                     ", however the pile is empty.", client=c.OTHERS)
-
     def shuffle_deck(self):
         for card in self.discard_pile:
             self.deck.append(card)
@@ -505,22 +431,15 @@ class Player:
             return card
 
     def gain(self, pile, to_pile=None, mute=False, return_card=False):
+        if to_pile is None:
+            to_pile = self.discard_pile
+
         if pile.number <= 0:
             if self.game.verbose:
                 self.game.output("The " + pile.colored_name() + " pile is empty!", client=c.ALL)
             return
 
-        if c.royal_seal in [card.name for card in self.active_cards] and to_pile is not self.deck:
-            if self.human:
-                if card_methods.confirm_card(self, "Place " + pile.colored_name() + " on top of deck (y/n)?",
-                                             mute_n=True):
-                    to_pile = self.deck
-            else:
-                if np.random.random() > 0.5:
-                    to_pile = self.deck
-
-        if to_pile is None:
-            to_pile = self.discard_pile
+        to_pile = card_effects.royal_seal_effect(self, pile, to_pile)
 
         if self.game.verbose and not mute:
             self.game.output(self.name + " gains " + pile.colored_name(), client=c.ALL)
@@ -531,26 +450,8 @@ class Player:
         if to_pile is self.deck and self.game.verbose and not mute:
             self.game.output(self.name + " places " + pile.colored_name() + " on top of their deck", client=c.ALL)
 
-        for card in self.hand:
-            if c.reaction in card.types:
-                if c.reaction_triggers[card.name] == c.gain:
-                    if self.human:
-                        if card_methods.confirm_card(self, "Will " + self.name + " reveal " + card.colored_name()
-                                                     + " reaction card (y/n)?", mute_n=True):
-                            eval("card_reactions." + card.name.lower().replace(" ", "_")
-                                 + "_reaction(self, card, gain_card, to_pile)")
-                    else:
-                        if np.random.random() > 0:
-                            eval("card_reactions." + card.name.lower().replace(" ", "_")
-                                 + "_reaction(self, card, gain_card, to_pile)")
-
-        if c.trade_route in [_pile.name for _pile in list(self.game.supply.piles.values())]:
-            if c.victory in pile.types:
-                if pile.name not in self.game.trade_route_mat:
-                    self.game.trade_route_mat.append(pile.name)
-                    if self.game.verbose:
-                        self.game.output("Coin token moved from " + pile.colored_name() + " pile to Trade Route mat",
-                                         client=c.ALL)
+        card_reactions.trigger_reaction(self, c.gain, gain_card=gain_card, to_pile=to_pile)
+        card_effects.trade_route_effect(self.game, pile)
 
         if return_card:
             return gain_card
@@ -560,14 +461,45 @@ class Player:
             self.game.output(self.name + " gains " + txf.vt(num=num, plain=True), client=c.ALL)
         self.victory_tokens += num
 
+    def gain_from_trash(self, card, to_pile=None, mute=False, return_card=False):
+        if not to_pile:
+            to_pile = self.discard_pile
+
+        if len(self.game.trash) <= 0:
+            if self.game.verbose:
+                self.game.output("The trash is empty!", client=c.ALL)
+            return
+
+        to_pile = card_effects.royal_seal_effect(self, card, to_pile)
+
+        if self.game.verbose and not mute:
+            self.game.output(self.name + " gains " + card.colored_name(), client=c.ALL)
+        to_pile.append(card)
+        self.game.trash.remove(card)
+
+        if to_pile is self.deck and self.game.verbose and not mute:
+            self.game.output(self.name + " places " + card.colored_name() + " on top of their deck", client=c.ALL)
+
+        card_reactions.trigger_reaction(self, c.gain, gain_card=card, to_pile=to_pile)
+
+        if return_card:
+            return card
+
     def trash(self, from_pile, card):
         try:
-            assert card in from_pile
+            _from_pile = from_pile
+            if type(from_pile) is Pile:
+                _from_pile = from_pile.cards
+
+            assert card in _from_pile
             if self.game.verbose:
                 self.game.output(self.name + " trashes " + card.colored_name(), client=c.ALL)
             self.game.trash.append(card)
-            from_pile.remove(card)
-        except:
+            if type(from_pile) is Pile:
+                from_pile.remove()
+            else:
+                _from_pile.remove(card)
+        except Exception:
             if self.game.verbose:
                 self.game.output(card.colored_name() + " is not in expected location and was not trashed", client=c.ALL)
 
@@ -718,7 +650,7 @@ class Card:
         if type(cost) is int:
             self.cost = cost
         else:
-            self.cost = eval("card_costs." + self.name.lower().replace(" ", "_") + "_cost")
+            self.cost = eval("card_costs." + self.name.lower().replace(" ", "_").replace("\'", "") + "_cost")
         self.text = text
         # self.actions = actions
         # self.villagers = villagers
@@ -757,16 +689,7 @@ class Card:
         if c.attack in self.types:
             _players = [p for p in player.game.players if p is not player]
             for p in _players:
-                for card in p.hand:
-                    if c.reaction in card.types:
-                        if c.reaction_triggers[card.name] == c.attack:
-                            if p.human:
-                                if card_methods.confirm_card(p, "Will " + p.name + " reveal " + card.colored_name()
-                                                             + " reaction card (y/n)?", mute_n=True):
-                                    eval("card_reactions." + card.name.lower().replace(" ", "_") + "_reaction(p, card)")
-                            else:
-                                if np.random.random() > 0:
-                                    eval("card_reactions." + card.name.lower().replace(" ", "_") + "_reaction(p, card)")
+                card_reactions.trigger_reaction(p, c.attack)
 
         if discard:
             player.move(from_pile=player.hand, to_pile=player.active_cards, card=self, mute=mute)
@@ -1121,12 +1044,12 @@ class Game:
             if self.use_victory_tokens:
                 self.output("Victory tokens: " + txf.vt(num=p.victory_tokens, plain=True), client=c.ALL)
 
-    def print_trash(self):
-        self.output("\nTrash (" + str(len(self.trash)) + " cards):", client=c.ALL)
+    def print_trash(self, client=c.ALL):
+        self.output("\nTrash (" + str(len(self.trash)) + " cards):", client=client)
         breakdown = self.deck_breakdown(self.trash)
         for pair in list(breakdown.items()):
             card = Card(**c.card_list[pair[0]])
-            self.output(txf.bold(str(pair[1]) + "x") + "\t" + card.colored_name(), client=c.ALL)
+            self.output(txf.bold(str(pair[1]) + "x") + "\t" + card.colored_name(), client=client)
 
     @staticmethod
     def deck_breakdown(deck:list):
@@ -1214,6 +1137,9 @@ while not game.game_over:
 game.score()
 game.print_decks()
 game.print_trash()
+if all([not p.human for p in game.players]):
+    game.output("\nFinal ", end=0)
+    game.output(game.supply.__str__())
 
 if game.multiplayer():
     game.output(c.GAME_OVER, client=c.ALL)

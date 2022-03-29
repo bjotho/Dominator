@@ -212,6 +212,9 @@ peddler = "Peddler"
 platinum = "Platinum"
 colony = "Colony"
 
+initial_treasures = [gold, silver, copper]
+initial_victory_cards = [province, duchy, estate]
+
 # Dictionary for player effects
 effect_dict = {
     moat: {number: 1, req_active: False, description: "You are unaffected by other players\' attacks this turn."},
@@ -230,14 +233,17 @@ effect_dict = {
             "Gold."}
 }
 
+# Dictionary for reaction triggers
+reaction_triggers = {
+    moat: attack,
+    watchtower: gain
+}
+
 # Starting deck for each player
 starting_deck = {
     copper: 7,
     estate: 3
 }
-
-initial_treasures = [gold, silver, copper]
-initial_victory_cards = [province, duchy, estate]
 
 # Dictionary for card text
 card_text = {
@@ -539,9 +545,4 @@ card_list = {
     peddler: {name: peddler, set: prosperity, types: [action], cost: peddler, text: card_text[peddler], pile_size: 10},
     platinum: {name: platinum, set: prosperity, types: [treasure], cost: 9, text: card_text[platinum], pile_size: 12},
     colony: {name: colony, set: prosperity, types: [victory], cost: 11, text: card_text[colony], pile_size: [8, 12]},
-}
-
-reaction_triggers = {
-    moat: attack,
-    watchtower: gain
 }

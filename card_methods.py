@@ -3,9 +3,9 @@ import constants as c
 import text_formatting as txf
 
 
-""" This file contains implementations of the effects of each card.
-    Each card has it's own method with the card name followed by _card
-    (confirm_card is just a utility function)"""
+""" This file contains implementations of the rules of each card.
+    Each card has it's own function with the card name followed by _card
+    (confirm_card, choose_option and handle_exception are utility functions)"""
 
 
 def confirm_card(player, confirmation_str, mute_n=False):
@@ -19,6 +19,29 @@ def confirm_card(player, confirmation_str, mute_n=False):
                 player.game.output("Aborted", client=c.ALL)
             return False
         return True
+
+
+def choose_option(player, choice_str, options):
+    for n, op in enumerate(options):
+        options[n] = str(op)
+
+    choice = None
+    while len(options) > 0:
+        choice = player.game.input(choice_str, client=player)
+        if choice not in options:
+            output = "Please type "
+            for n, op in enumerate(options):
+                if n < len(options) - 2:
+                    output += f"\"{op}\", "
+                elif n < len(options) - 1:
+                    output += f"\"{op}\" or "
+                else:
+                    output += f"\"{op}\""
+            player.game.output(output)
+            continue
+        break
+
+    return choice
 
 
 def handle_exception(e):
@@ -228,8 +251,8 @@ def workshop_card(player):
                 continue
             gainable_cards = [pile for pile in list(player.game.supply.piles.values())
                               if 0 <= pile.get_cost(player, mute=True) <= 4 and pile.number > 0]
-            gain_pile = txf.get_card(gain_card, gainable_cards)
-            if gain_pile is None:
+            gain_pile = txf.get_pile(input_str=gain_card, supply_piles=player.game.supply.piles)
+            if not gain_pile or gain_pile not in gainable_cards:
                 player.game.output("Invalid input")
                 continue
             player.gain(gain_pile)
@@ -316,8 +339,8 @@ def feast_card(player):
                 continue
             gainable_cards = [pile for pile in list(player.game.supply.piles.values())
                               if 0 <= pile.get_cost(player, mute=True) <= 5 and pile.number > 0]
-            gain_pile = txf.get_card(gain_card_str, gainable_cards)
-            if gain_pile is None:
+            gain_pile = txf.get_pile(input_str=gain_card_str, supply_piles=player.game.supply.piles)
+            if not gain_pile or gain_pile not in gainable_cards:
                 player.game.output("Invalid input")
                 continue
             player.gain(gain_pile)
@@ -1018,6 +1041,108 @@ def artisan_card(player):
 
 # Intrigue cards
 
+def courtyard_card(player):
+    for _ in range(3):
+        player.draw()
+
+    if player.human:
+        while True:
+            if player.game.verbose:
+                player.print_hand()
+                player.game.output("Select a card from your hand to place on top of your deck:")
+            deck_card_str = player.game.input()
+            try:
+                deck_card = txf.get_card(deck_card_str, player.hand)
+                if not deck_card:
+                    player.game.output("Invalid input")
+                    continue
+
+                if not confirm_card(player, f"{deck_card.colored_name()} will be put onto your deck (y/n):",
+                                    mute_n=True):
+                    continue
+
+                player.move(player.hand, player.deck, deck_card)
+                break
+            except Exception as e:
+                handle_exception(e)
+                player.game.output("Invalid input")
+                continue
+    else:
+        deck_card = np.random.choice(player.hand)
+        player.move(player.hand, player.deck, deck_card)
+
+    if player.game.verbose:
+        player.game.output(f"{player.name} puts a card onto their deck", client=c.ALL)
+
+    return True
+
+
+def lurker_card(player):
+    player.actions += 1
+
+    if player.human:
+        while True:
+            options = [1, 2]
+            choice = choose_option(player, "Choose one:\n  (1) Trash an Action card from the Supply; or" +
+                                   "\n  (2) Gain an Action card from the trash (1/2):", options)
+            if choice == '1':
+                if player.game.verbose:
+                    player.game.output(player.game.supply.__str__())
+                trashable_piles = [pile for pile in player.game.supply.piles.values() if c.action in pile.types
+                                   and pile.number > 0]
+                if len(trashable_piles) == 0:
+                    player.game.output("There are no Action cards in the supply to trash", client=c.ALL)
+                    if confirm_card(player, "Re-select (y/n)?", mute_n=True):
+                        continue
+                    else:
+                        return True
+                trash_card_str = player.game.input("Select an Action card to trash from the Supply (card name):")
+                trash_pile = txf.get_pile(input_str=trash_card_str, supply_piles=player.game.supply.piles)
+                if not trash_pile or trash_pile not in trashable_piles:
+                    player.game.output("Invalid input")
+                    continue
+                player.trash(trash_pile, trash_pile.cards[-1])
+                break
+            elif choice == '2':
+                if player.game.verbose:
+                    player.game.print_trash(client=c.SELF)
+                gainable_cards = [card for card in player.game.trash if c.action in card.types]
+                if len(gainable_cards) == 0:
+                    player.game.output("There are no Action cards in the trash to gain", client=c.ALL)
+                    if confirm_card(player, "Re-select (y/n)?", mute_n=True):
+                        continue
+                    else:
+                        return True
+                gain_card_str = player.game.input("Select an Action card to gain from the trash (card name):")
+                gain_card = txf.get_card(gain_card_str, gainable_cards)
+                if not gain_card:
+                    player.game.output("Invalid input")
+                    continue
+                player.gain_from_trash(gain_card)
+                break
+            else:
+                player.game.output("Error, invalid options")
+                return False
+    else:
+        gainable_cards = [card for card in player.game.trash if c.action in card.types]
+        if len(gainable_cards) > 0:
+            prob = 0.5
+        else:
+            prob = 1
+
+        if np.random.random() <= prob:
+            trashable_piles = [pile for pile in list(player.game.supply.piles.values()) if c.action in pile.types
+                               and pile.number > 0]
+            if len(trashable_piles) == 0:
+                return True
+            trash_pile = np.random.choice(trashable_piles)
+            player.trash(trash_pile, trash_pile.cards[-1])
+        else:
+            if len(gainable_cards) > 0:
+                gain_pile = np.random.choice(gainable_cards)
+                player.gain_from_trash(gain_pile)
+
+    return True
 
 
 # Prosperity cards
@@ -1857,12 +1982,3 @@ def curse_card(player):
     player.victory_points -= 1
 
     return True
-
-
-# def test_card(player):
-#     for card in player.hand:
-#         if c.action in card.types:
-#             player.actions += 1
-#
-#     for p in player.game.players:
-#         p.draw()

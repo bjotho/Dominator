@@ -2,7 +2,22 @@ import constants as c
 from card_methods import np, confirm_card
 
 
-def moat_reaction(player, self_card):
+def trigger_reaction(player, trigger, **kwargs):
+    for card in player.hand:
+        if c.reaction in card.types:
+            if c.reaction_triggers[card.name] == trigger:
+                if player.human:
+                    if confirm_card(player, f"Will {player.name} reveal {card.colored_name()} reaction card (y/n)?",
+                                    mute_n=True):
+                        eval(card.name.lower().replace(" ", "_").replace("\'", "")
+                             + "_reaction(player, card, **kwargs)")
+                else:
+                    if np.random.random() > 0:
+                        eval(card.name.lower().replace(" ", "_").replace("\'", "")
+                             + "_reaction(player, card, **kwargs)")
+
+
+def moat_reaction(player, self_card, **kwargs):
     player.reveal(player.hand, self_card, move=False)
     player.effects[c.moat] = c.effect_dict[c.moat]
 

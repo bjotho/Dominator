@@ -185,7 +185,7 @@ class Server:
                 client_socket, client_address = self.server_socket.accept()
                 print(f"[ACCEPTED] Accepted new connection from {client_address[0]}:{client_address[1]}")
                 threading.Thread(target=self.handle_client, args=(client_socket, client_address)).start()
-                print(f"[ACTIVE CONNECTIONS] {threading.activeCount() - 1}")
+                print(f"[ACTIVE CONNECTIONS] {threading.active_count() - 1}")
                 accepted += 1
 
             while len(self.clients) < num:
