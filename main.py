@@ -277,12 +277,9 @@ class Player:
                 gained_card = self.gain(pile, mute=True, return_card=True)
                 self.coins -= pile.get_cost(player=self)
                 self.buys -= 1
-                if c.talisman in active_card_names:
-                    card_effects.talisman_effect(self, pile, gained_card, cost, Card)
-                if c.goons in active_card_names:
-                    card_effects.goons_effect(self, Card)
-                if c.hoard in self.effects:
-                    card_effects.hoard_effect(self, gained_card, Card)
+                card_effects.talisman_effect(self, pile, gained_card, cost, Card)
+                card_effects.goons_effect(self, Card)
+                card_effects.hoard_effect(self, gained_card, Card)
 
     def play_treasure(self, manual=False):
         hand_treasures = [card for card in self.hand if c.treasure in card.types]
